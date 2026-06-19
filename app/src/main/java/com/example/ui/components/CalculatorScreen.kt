@@ -1,0 +1,1409 @@
+package com.example.ui.components
+
+import android.content.Intent
+import android.net.Uri
+import androidx.compose.animation.*
+import androidx.compose.foundation.*
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.ui.CalculatorViewModel
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+fun CalculatorScreen(
+    viewModel: CalculatorViewModel,
+    modifier: Modifier = Modifier
+) {
+    val context = LocalContext.current
+    val isDark by viewModel.isDarkTheme.collectAsStateWithLifecycle()
+    val basicMode by viewModel.basicMode.collectAsStateWithLifecycle()
+    val expr by viewModel.expr.collectAsStateWithLifecycle()
+    val result by viewModel.result.collectAsStateWithLifecycle()
+    val isWelcome by viewModel.isWelcome.collectAsStateWithLifecycle()
+
+    val shift by viewModel.shift.collectAsStateWithLifecycle()
+    val alpha by viewModel.alpha.collectAsStateWithLifecycle()
+    val mode by viewModel.mode.collectAsStateWithLifecycle()
+    val calcBase by viewModel.calcBase.collectAsStateWithLifecycle()
+    val waitingForSto by viewModel.waitingForSto.collectAsStateWithLifecycle()
+
+    // Dialog state
+    val showHistory by viewModel.showHistory.collectAsStateWithLifecycle()
+    val showTableMode by viewModel.showTableMode.collectAsStateWithLifecycle()
+    val showBaseConverter by viewModel.showBaseConverter.collectAsStateWithLifecycle()
+    val showEquationSolver by viewModel.showEquationSolver.collectAsStateWithLifecycle()
+    val showDevInfo by viewModel.showDevInfo.collectAsStateWithLifecycle()
+
+    // Stylings from CSS
+    val pageBg = if (isDark) Color(0xFF0A0E1A) else Color(0xFFFFFFFF)
+    val panelBg = if (isDark) Color(0xFF1E293B) else Color(0xFFF8FAFC)
+    val displayBgColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)
+
+    // LCD nostalgia theme
+    val lcdBgGradient = if (isDark) {
+        Brush.verticalGradient(listOf(Color(0xFF3D2F1F), Color(0xFF2E2214)))
+    } else {
+        Brush.verticalGradient(listOf(Color(0xFFD4E4D0), Color(0xFFB8CBB2)))
+    }
+    val lcdTextColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val borderStrongColor = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+    val textColor = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val textDimColor = if (isDark) Color(0xFFCBD5E1) else Color(0xFF475569)
+
+    Scaffold(
+        modifier = modifier.fillMaxSize(),
+        containerColor = pageBg
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .background(pageBg)
+                .padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            // Header: Brand Title, Theme toggler, and Developer Badge
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "SCIENTIFIC CALCULATOR",
+                        color = textColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.5.sp
+                    )
+                    IconButton(
+                        onClick = { viewModel.toggleTheme() },
+                        modifier = Modifier
+                            .size(28.dp)
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
+                    ) {
+                        Text(
+                            text = if (isDark) "☀️" else "🌙",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF2563EB))
+                        .border(1.dp, Color(0xFF2563EB), RoundedCornerShape(6.dp))
+                        .clickable { viewModel.showDevInfo.value = true }
+                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                ) {
+                    Text(
+                        text = "Hridoy Hasan Yeasin",
+                        color = Color.White,
+                        fontSize = 9.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+            }
+
+            // Screen Display Box
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(8.dp))
+                    .background(displayBgColor)
+                    .border(2.dp, borderStrongColor, RoundedCornerShape(8.dp))
+                    .padding(8.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                // LCD Status indicators
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    // DEG/RAD state
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (mode == "RAD") Color(0xFFDC2626) else if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            .border(1.dp, if (mode == "RAD") Color(0xFFDC2626) else borderStrongColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = mode,
+                            fontSize = 9.sp,
+                            color = if (mode == "RAD") Color.White else textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Base ModeDEC / BIN / OCT / HEX state
+                    val baseName = mapOf(10 to "DEC", 2 to "BIN", 8 to "OCT", 16 to "HEX")[calcBase] ?: "DEC"
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (calcBase != 10) Color(0xFFDC2626) else if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            .border(1.dp, if (calcBase != 10) Color(0xFFDC2626) else borderStrongColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = baseName,
+                            fontSize = 9.sp,
+                            color = if (calcBase != 10) Color.White else textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Shift key active indicator
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (shift) Color(0xFFDC2626) else if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            .border(1.dp, if (shift) Color(0xFFDC2626) else borderStrongColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "S",
+                            fontSize = 9.sp,
+                            color = if (shift) Color.White else textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // Alpha key active indicator
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (alpha) Color(0xFF059669) else if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            .border(1.dp, if (alpha) Color(0xFF059669) else borderStrongColor, RoundedCornerShape(4.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "A",
+                            fontSize = 9.sp,
+                            color = if (alpha) Color.White else textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    Spacer(modifier = Modifier.weight(1f))
+
+                    // BASIC vs SCIENTIFIC switcher pill
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            .border(1.dp, borderStrongColor, RoundedCornerShape(4.dp))
+                            .clickable { viewModel.toggleLive() }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = if (basicMode) "BASIC" else "SCIENTIFIC",
+                            fontSize = 9.sp,
+                            color = textColor,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+
+                    // History popup button
+                    Box(
+                        modifier = Modifier
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(Color(0xFF2563EB))
+                            .clickable { viewModel.showHistory.value = true }
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                    ) {
+                        Text(
+                            text = "History",
+                            fontSize = 9.sp,
+                            color = Color.White,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                // LCD Screen itself with gradient background & premium glass glare
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(110.dp)
+                        .clip(RoundedCornerShape(10.dp))
+                        .background(lcdBgGradient)
+                        .border(1.5.dp, if (isDark) Color(0xFF2E2B24) else Color(0xFF90A18E), RoundedCornerShape(10.dp))
+                ) {
+                    // Glass glare diagonal wash
+                    Canvas(modifier = Modifier.fillMaxSize()) {
+                        val w = size.width
+                        val h = size.height
+                        drawRect(
+                            brush = Brush.linearGradient(
+                                colors = listOf(
+                                    Color.White.copy(alpha = if (isDark) 0.05f else 0.20f),
+                                    Color.White.copy(alpha = 0.0f),
+                                    Color.White.copy(alpha = if (isDark) 0.03f else 0.12f),
+                                ),
+                                start = androidx.compose.ui.geometry.Offset(0f, 0f),
+                                end = androidx.compose.ui.geometry.Offset(w, h)
+                            )
+                        )
+                    }
+
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalArrangement = Arrangement.SpaceBetween,
+                        horizontalAlignment = Alignment.End
+                    ) {
+                        // Expression line (scrolling horizontally automatically)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState(Int.MAX_VALUE)),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            Text(
+                                text = expr.ifEmpty { "0" },
+                                fontSize = 18.sp,
+                                fontFamily = FontFamily.Monospace,
+                                fontWeight = FontWeight.Medium,
+                                color = lcdTextColor.copy(alpha = 0.85f),
+                                textAlign = TextAlign.End,
+                                maxLines = 1
+                            )
+                        }
+
+                        // Calculated Result line (larger font)
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .horizontalScroll(rememberScrollState()),
+                            contentAlignment = Alignment.CenterEnd
+                        ) {
+                            if (isWelcome) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.Center,
+                                    modifier = Modifier.fillMaxWidth()
+                                ) {
+                                    Text(
+                                        text = "Welcome to ",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lcdTextColor
+                                    )
+                                    Text(
+                                        text = "Hridoy",
+                                        fontSize = 18.sp,
+                                        fontWeight = FontWeight.Black,
+                                        color = Color(0xFF2563EB)
+                                    )
+                                    Text(
+                                        text = "'s World",
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = lcdTextColor
+                                    )
+                                }
+                            } else {
+                                Text(
+                                    text = result,
+                                    fontSize = 32.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    fontWeight = FontWeight.Bold,
+                                    color = lcdTextColor,
+                                    textAlign = TextAlign.End,
+                                    maxLines = 1,
+                                    modifier = Modifier.testTag("result_display")
+                                )
+                            }
+                        }
+                    }
+                }
+
+                // Nostalgic casing branding strip
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = 2.dp, bottom = 2.dp),
+                    horizontalArrangement = Arrangement.Center,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = "H R I D O Y ' S   P R E M I U M   E D I T I O N",
+                        color = textColor.copy(alpha = 0.35f),
+                        fontSize = 8.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 1.sp
+                    )
+                }
+            }
+
+            // Keyboard grid container
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .weight(1f)
+            ) {
+                if (basicMode) {
+                    BasicCalculatorGrid(viewModel, isDark)
+                } else {
+                    ScientificCalculatorGrid(viewModel, isDark, calcBase)
+                }
+            }
+        }
+    }
+
+    // Modal Overlays modeled as custom dialogs
+    if (showHistory) {
+        HistoryDialog(viewModel, isDark)
+    }
+
+    if (showTableMode) {
+        TableModeDialog(viewModel, isDark)
+    }
+
+    if (showBaseConverter) {
+        BaseConverterDialog(viewModel, isDark)
+    }
+
+    if (showEquationSolver) {
+        EquationSolverDialog(viewModel, isDark)
+    }
+
+    if (showDevInfo) {
+        InfoDialog(viewModel, isDark)
+    }
+}
+
+// Subcomponent grids
+@Composable
+fun BasicCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val buttonBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val buttonTextColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+    val opBg = if (isDark) Color(0xFF4F46E5) else Color(0xFF6366F1)
+    val dangerBg = if (isDark) Color(0xFFDC2626) else Color(0xFFEF4444)
+    val accentBg = if (isDark) Color(0xFF2563EB) else Color(0xFF3B82F6)
+
+    @Composable
+    fun BasicBtn(label: String, bg: Color, textColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+        Button(
+            onClick = onClick,
+            modifier = modifier
+                .fillMaxHeight()
+                .padding(3.dp)
+                .testTag("btn_basic_$label"),
+            colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = textColor),
+            shape = RoundedCornerShape(10.dp),
+            contentPadding = PaddingValues(0.dp),
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (isDark) Color(0xFF334155).copy(alpha = 0.5f) else Color(0xFFE2E8F0)
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
+        ) {
+            Text(text = label, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        val rowWeight = 1f
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            BasicBtn("C", bg = dangerBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressClear() }
+            BasicBtn("÷", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("÷") }
+            BasicBtn("×", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("×") }
+            BasicBtn("⌫", bg = dangerBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressBack() }
+        }
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            BasicBtn("7", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("7") }
+            BasicBtn("8", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("8") }
+            BasicBtn("9", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("9") }
+            BasicBtn("-", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("-") }
+        }
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            BasicBtn("4", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("4") }
+            BasicBtn("5", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("5") }
+            BasicBtn("6", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("6") }
+            BasicBtn("+", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("+") }
+        }
+        Row(modifier = Modifier.weight(2f).fillMaxWidth()) {
+            Column(modifier = Modifier.weight(3f).fillMaxHeight()) {
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    BasicBtn("1", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("1") }
+                    BasicBtn("2", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("2") }
+                    BasicBtn("3", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("3") }
+                }
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    BasicBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey(".") }
+                    BasicBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("0") }
+                    BasicBtn("%", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("%") }
+                }
+            }
+            BasicBtn("=", bg = accentBg, textColor = Color.White, modifier = Modifier.weight(1f).fillMaxHeight()) { viewModel.pressEq() }
+        }
+    }
+}
+
+@Composable
+fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, calcBase: Int) {
+    val buttonBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val buttonTextColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
+    val opBg = if (isDark) Color(0xFF4F46E5) else Color(0xFF6366F1)
+    val dangerBg = if (isDark) Color(0xFFDC2626) else Color(0xFFEF4444)
+    val accentBg = if (isDark) Color(0xFF2563EB) else Color(0xFF3B82F6)
+    val funcBg = if (isDark) Color(0xFF2E3B4E) else Color(0xFFE2E8F0)
+
+    val shiftLabelColor = if (isDark) Color(0xFFFBBF24) else Color(0xFFD97706)
+    val alphaLabelColor = if (isDark) Color(0xFF34D399) else Color(0xFF059669)
+    val bottomLabelColor = if (isDark) Color(0xFFFBBF24).copy(alpha = 0.85f) else Color(0xFFB45309).copy(alpha = 0.85f)
+
+    @Composable
+    fun SciBtn(
+        label: String,
+        bg: Color,
+        textColor: Color,
+        topLabel: String = "",
+        alphaLabel: String = "",
+        bottomLabel: String = "",
+        modifier: Modifier = Modifier,
+        enabled: Boolean = true,
+        onClick: () -> Unit
+    ) {
+        val buttonOpacity = if (enabled) 1f else 0.40f
+        val resolvedTextColor = if (bg == funcBg && textColor == Color.White) {
+            if (isDark) Color(0xFFCBD5E1) else Color(0xFF312E81)
+        } else {
+            textColor
+        }
+
+        Button(
+            onClick = { if (enabled) onClick() },
+            modifier = modifier
+                .fillMaxHeight()
+                .padding(2.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = bg.copy(alpha = buttonOpacity), contentColor = resolvedTextColor.copy(alpha = buttonOpacity)),
+            shape = RoundedCornerShape(8.dp),
+            contentPadding = PaddingValues(0.dp),
+            border = BorderStroke(
+                width = 1.dp,
+                color = if (isDark) Color(0xFF334155).copy(alpha = 0.3f) else Color(0xFFE2E8F0)
+            ),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
+        ) {
+            Box(modifier = Modifier.fillMaxSize()) {
+                if (topLabel.isNotEmpty()) {
+                    Text(
+                        text = topLabel,
+                        color = shiftLabelColor.copy(alpha = buttonOpacity),
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopStart)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+                if (alphaLabel.isNotEmpty()) {
+                    Text(
+                        text = alphaLabel,
+                        color = alphaLabelColor.copy(alpha = buttonOpacity),
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                    )
+                }
+                Text(
+                    text = label,
+                    fontSize = 14.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.align(Alignment.Center)
+                )
+                if (bottomLabel.isNotEmpty()) {
+                    Text(
+                        text = bottomLabel,
+                        color = bottomLabelColor.copy(alpha = buttonOpacity),
+                        fontSize = 7.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 2.dp)
+                    )
+                }
+            }
+        }
+    }
+
+    // Determine disabled items in base modes representing identical JS updateBaseButtons rules
+    fun isButtonEnabled(text: String): Boolean {
+        if (text.lowercase() in listOf("del", "dec", "ans", "m", "bin", "oct", "hex")) return true
+        if (calcBase == 2) {
+            // Disable digits 2-9, A-F, and advanced math
+            if (text.any { it in '2'..'9' || it.uppercaseChar() in 'A'..'F' }) return false
+            if (text in listOf("sin", "cos", "tan", "csc", "sec", "cot", "log", "ln", "√", "∛", "!", "×10ˣ", "%", "x²", "xʸ", "π", "fact", "abs", "Rnd", "nPr", "nCr", "Pol(", "Rec(")) return false
+        } else if (calcBase == 8) {
+            // Disable digits 8-9, A-F and advanced math
+            if (text.any { it in '8'..'9' || it.uppercaseChar() in 'A'..'F' }) return false
+            if (text in listOf("sin", "cos", "tan", "csc", "sec", "cot", "log", "ln", "√", "∛", "!", "×10ˣ", "%", "x²", "xʸ", "π", "fact", "abs", "Rnd", "nPr", "nCr", "Pol(", "Rec(")) return false
+        } else if (calcBase == 16) {
+            // Enable HEX digits: 0-9, A-F, as well as buttons representing: x², xʸ, √, π, log, ln (since they are labeled A-F)
+            // Disable sin, cos, tan, csc, sec, cot, ∛, !, sto, s, eng, % etc
+            if (text.lowercase() in listOf("sin", "cos", "tan", "csc", "sec", "cot", "∛", "!", "sto", "s", "eng", "×10", "%", "fact", "npr", "ncr", "abs", "rnd", "pol", "rec")) return false
+        }
+        return true
+    }
+
+    Column(modifier = Modifier.fillMaxSize()) {
+        val rowWeight = 1f
+        // Row 1
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("⇧", bg = dangerBg, textColor = Color.White, modifier = Modifier.weight(10f)) { viewModel.pressShift() }
+            SciBtn("α", bg = Color(0xFF059669), textColor = Color.White, modifier = Modifier.weight(10f)) { viewModel.pressAlpha() }
+            SciBtn("M", bg = funcBg, textColor = Color.White, topLabel = "tab", alphaLabel = "bas", bottomLabel = "equ", modifier = Modifier.weight(10f)) { viewModel.pressModeMenu() }
+            SciBtn("(", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("(")) { viewModel.pressParen() }
+            SciBtn(")", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled(")")) { viewModel.pressKey(")") }
+            SciBtn("☷", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f)) { viewModel.showDevInfo.value = true }
+        }
+        // Row 2
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("x²", bg = funcBg, textColor = Color.White, topLabel = "x³", alphaLabel = "A", modifier = Modifier.weight(10f), enabled = isButtonEnabled("A")) { viewModel.pressFunc("pow2") }
+            SciBtn("xʸ", bg = funcBg, textColor = Color.White, topLabel = "ˣ√", alphaLabel = "B", modifier = Modifier.weight(10f), enabled = isButtonEnabled("B")) { viewModel.pressFunc("pow") }
+            SciBtn("√", bg = funcBg, textColor = Color.White, topLabel = "³√", alphaLabel = "C", modifier = Modifier.weight(10f), enabled = isButtonEnabled("C")) { viewModel.pressFunc("sqrt") }
+            SciBtn("π", bg = funcBg, textColor = Color.White, topLabel = "e", alphaLabel = "D", modifier = Modifier.weight(10f), enabled = isButtonEnabled("D")) { viewModel.pressConst("π") }
+            SciBtn("log", bg = funcBg, textColor = Color.White, topLabel = "10ˣ", alphaLabel = "E", bottomLabel = "logₓy", modifier = Modifier.weight(10f), enabled = isButtonEnabled("E")) { viewModel.pressFunc("log") }
+            SciBtn("ln", bg = funcBg, textColor = Color.White, topLabel = "eˣ", alphaLabel = "F", modifier = Modifier.weight(10f), enabled = isButtonEnabled("F")) { viewModel.pressFunc("ln") }
+        }
+        // Row 3
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("sin", bg = funcBg, textColor = Color.White, topLabel = "sin⁻¹", alphaLabel = "csc", bottomLabel = "csc⁻¹", modifier = Modifier.weight(10f), enabled = isButtonEnabled("sin")) { viewModel.pressFunc("sin") }
+            SciBtn("cos", bg = funcBg, textColor = Color.White, topLabel = "cos⁻¹", alphaLabel = "sec", bottomLabel = "sec⁻¹", modifier = Modifier.weight(10f), enabled = isButtonEnabled("cos")) { viewModel.pressFunc("cos") }
+            SciBtn("tan", bg = funcBg, textColor = Color.White, topLabel = "tan⁻¹", alphaLabel = "cot", bottomLabel = "cot⁻¹", modifier = Modifier.weight(10f), enabled = isButtonEnabled("tan")) { viewModel.pressFunc("tan") }
+            SciBtn("x!", bg = funcBg, textColor = Color.White, topLabel = "x⁻¹", modifier = Modifier.weight(10f), enabled = isButtonEnabled("fact")) { viewModel.pressFunc("fact") }
+            SciBtn("DEL", bg = dangerBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("del")) { viewModel.pressDel() }
+            SciBtn("AC", bg = dangerBg, textColor = Color.White, modifier = Modifier.weight(10f)) { viewModel.pressAC() }
+        }
+        // Row 4
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("nPr", bg = funcBg, textColor = Color.White, topLabel = "nCr", modifier = Modifier.weight(10f), enabled = isButtonEnabled("nPr")) { viewModel.pressFunc("nPr") }
+            SciBtn("Pol", bg = funcBg, textColor = Color.White, topLabel = "Rec(", modifier = Modifier.weight(10f), enabled = isButtonEnabled("pol")) { viewModel.pressFunc("pol") }
+            SciBtn("S⇔D", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("S⇔D")) { viewModel.pressSD() }
+            SciBtn("BIN", bg = funcBg, textColor = Color.White, topLabel = "0b", modifier = Modifier.weight(10f), enabled = isButtonEnabled("bin")) { if (viewModel.shift.value) viewModel.pressBasePrefix(2) else viewModel.pressBaseKey(2) }
+            SciBtn("OCT", bg = funcBg, textColor = Color.White, topLabel = "0o", modifier = Modifier.weight(10f), enabled = isButtonEnabled("oct")) { if (viewModel.shift.value) viewModel.pressBasePrefix(8) else viewModel.pressBaseKey(8) }
+            SciBtn("÷", bg = opBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("÷")) { viewModel.pressOp("÷") }
+        }
+        // Row 5
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("7", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("7")) { viewModel.pressBaseDigit("7") }
+            SciBtn("8", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("8")) { viewModel.pressBaseDigit("8") }
+            SciBtn("9", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("9")) { viewModel.pressBaseDigit("9") }
+            SciBtn("DEC", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("dec")) { viewModel.pressBaseKey(10) }
+            SciBtn("HEX", bg = funcBg, textColor = Color.White, topLabel = "0x", modifier = Modifier.weight(10f), enabled = isButtonEnabled("hex")) { if (viewModel.shift.value) viewModel.pressBasePrefix(16) else viewModel.pressBaseKey(16) }
+            SciBtn("×", bg = opBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("×")) { viewModel.pressOp("×") }
+        }
+        // Row 6
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("4", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("4")) { viewModel.pressBaseDigit("4") }
+            SciBtn("5", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("5")) { viewModel.pressBaseDigit("5") }
+            SciBtn("6", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("6")) { viewModel.pressBaseDigit("6") }
+            SciBtn("Abs", bg = funcBg, textColor = Color.White, topLabel = "Rnd", modifier = Modifier.weight(10f), enabled = isButtonEnabled("abs")) { viewModel.pressFunc("abs") }
+            SciBtn("STO", bg = funcBg, textColor = Color.White, topLabel = "clear", modifier = Modifier.weight(10f), enabled = isButtonEnabled("sto")) { viewModel.pressSto() }
+            SciBtn("-", bg = opBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("-")) { viewModel.pressOp("-") }
+        }
+        // Row 7
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("1", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("1")) { viewModel.pressBaseDigit("1") }
+            SciBtn("2", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("2")) { viewModel.pressBaseDigit("2") }
+            SciBtn("3", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("3")) { viewModel.pressBaseDigit("3") }
+            SciBtn("×10ˣ", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("×10ˣ")) { viewModel.pressExp() }
+            SciBtn("ENG", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("eng")) { viewModel.pressEng() }
+            SciBtn("+", bg = opBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("+")) { viewModel.pressOp("+") }
+        }
+        // Row 8
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            SciBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("0")) { viewModel.pressBaseDigit("0") }
+            SciBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled(".")) { viewModel.pressKey(".") }
+            SciBtn("(±)", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("(±)")) { viewModel.pressNeg() }
+            SciBtn("%", bg = funcBg, textColor = Color.White, topLabel = ",", modifier = Modifier.weight(10f), enabled = isButtonEnabled("%")) { viewModel.pressKey("%") }
+            SciBtn("Ans", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("ans")) { viewModel.pressAns() }
+            SciBtn("=", bg = accentBg, textColor = Color.White, topLabel = "=", modifier = Modifier.weight(10f), enabled = isButtonEnabled("=")) { viewModel.pressEq() }
+        }
+    }
+}
+
+// Dialog Overlays
+@Composable
+fun HistoryDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val historyList by viewModel.historyList.collectAsStateWithLifecycle()
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    Dialog(onDismissRequest = { viewModel.showHistory.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.8f)
+                .padding(12.dp)
+                .testTag("dialog_history"),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Calculation History", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    IconButton(onClick = { viewModel.showHistory.value = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    }
+                }
+
+                // Content
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxWidth()
+                        .padding(8.dp)
+                ) {
+                    if (historyList.isEmpty()) {
+                        Text(
+                            text = "No calculations yet",
+                            color = textCol.copy(alpha = 0.6f),
+                            modifier = Modifier.align(Alignment.Center),
+                            fontSize = 14.sp
+                        )
+                    } else {
+                        LazyColumn(
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            items(historyList) { item ->
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clip(RoundedCornerShape(8.dp))
+                                        .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
+                                        .clickable { viewModel.loadFromHistory(item) }
+                                        .padding(10.dp)
+                                ) {
+                                    Text(text = item.date, fontSize = 10.sp, color = textCol.copy(alpha = 0.5f))
+                                    Text(text = item.expr, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, color = textCol, fontFamily = FontFamily.Monospace)
+                                    Text(
+                                        text = "= ${item.result}",
+                                        fontSize = 16.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = Color(0xFF2563EB),
+                                        fontFamily = FontFamily.Monospace,
+                                        modifier = Modifier.align(Alignment.End)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+
+                // Footer
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.End
+                ) {
+                    Button(
+                        onClick = { viewModel.clearHistory() },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFEF4444)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Clear All", color = Color.White)
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun TableModeDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    val fx by viewModel.tableFx.collectAsStateWithLifecycle()
+    val start by viewModel.tableStart.collectAsStateWithLifecycle()
+    val end by viewModel.tableEnd.collectAsStateWithLifecycle()
+    val step by viewModel.tableStep.collectAsStateWithLifecycle()
+    val rows by viewModel.tableRows.collectAsStateWithLifecycle()
+    val tableError by viewModel.tableError.collectAsStateWithLifecycle()
+
+    Dialog(onDismissRequest = { viewModel.showTableMode.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(12.dp)
+                .testTag("dialog_table_mode"),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Table Mode f(x)", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    IconButton(onClick = { viewModel.showTableMode.value = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    }
+                }
+
+                // Scrollable content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(12.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Formula input
+                    OutlinedTextField(
+                        value = fx,
+                        onValueChange = { viewModel.tableFx.value = it },
+                        label = { Text("f(x) = ") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF2563EB),
+                            unfocusedBorderColor = borderStrongColor(isDark),
+                            focusedLabelColor = Color(0xFF2563EB),
+                            unfocusedLabelColor = textCol,
+                            focusedTextColor = textCol,
+                            unfocusedTextColor = textCol
+                        )
+                    )
+
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        OutlinedTextField(
+                            value = start,
+                            onValueChange = { viewModel.tableStart.value = it },
+                            label = { Text("Start") },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2563EB), focusedLabelColor = Color(0xFF2563EB), focusedTextColor = textCol, unfocusedTextColor = textCol)
+                        )
+                        OutlinedTextField(
+                            value = end,
+                            onValueChange = { viewModel.tableEnd.value = it },
+                            label = { Text("End") },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2563EB), focusedLabelColor = Color(0xFF2563EB), focusedTextColor = textCol, unfocusedTextColor = textCol)
+                        )
+                        OutlinedTextField(
+                            value = step,
+                            onValueChange = { viewModel.tableStep.value = it },
+                            label = { Text("Step") },
+                            modifier = Modifier.weight(1f),
+                            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Color(0xFF2563EB), focusedLabelColor = Color(0xFF2563EB), focusedTextColor = textCol, unfocusedTextColor = textCol)
+                        )
+                    }
+
+                    Button(
+                        onClick = { viewModel.generateTable() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Generate", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (tableError != null) {
+                        Text(text = tableError!!, color = Color.Red, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    }
+
+                    // Result Table
+                    if (rows.isNotEmpty()) {
+                        Column(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .border(1.dp, borderStrongColor(isDark), RoundedCornerShape(4.dp))
+                        ) {
+                            // Table Headers
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF2563EB))
+                                    .padding(8.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = "x", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                                Text(text = "f(x)", color = Color.White, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+                            }
+
+                            // Dynamic Rows
+                            rows.forEachIndexed { index, pair ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .background(if (index % 2 == 0) Color(0xFF2563EB).copy(alpha = 0.05f) else Color.Transparent)
+                                        .padding(8.dp),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(text = pair.first.toString(), color = textCol, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontFamily = FontFamily.Monospace)
+                                    Text(text = pair.second, color = textCol, modifier = Modifier.weight(1f), textAlign = TextAlign.Center, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun BaseConverterDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    val baseFrom by viewModel.baseFrom.collectAsStateWithLifecycle()
+    val baseInput by viewModel.baseInput.collectAsStateWithLifecycle()
+    val bin by viewModel.baseResultBin.collectAsStateWithLifecycle()
+    val oct by viewModel.baseResultOct.collectAsStateWithLifecycle()
+    val dec by viewModel.baseResultDec.collectAsStateWithLifecycle()
+    val hex by viewModel.baseResultHex.collectAsStateWithLifecycle()
+    val baseError by viewModel.baseError.collectAsStateWithLifecycle()
+
+    Dialog(onDismissRequest = { viewModel.showBaseConverter.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(12.dp)
+                .testTag("dialog_base_converter"),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Base Converter", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    IconButton(onClick = { viewModel.showBaseConverter.value = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(12.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    var expandedDropdown by remember { mutableStateOf(false) }
+                    val bases = listOf(10 to "DEC (Decimal)", 2 to "BIN (Binary)", 8 to "OCT (Octal)", 16 to "HEX (Hexadecimal)")
+                    val selectedBaseName = bases.firstOrNull { it.first == baseFrom }?.second ?: "DEC"
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { expandedDropdown = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(containerColor = if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9), contentColor = textCol),
+                            border = BorderStroke(1.dp, borderStrongColor(isDark))
+                        ) {
+                            Text(selectedBaseName)
+                        }
+                        DropdownMenu(
+                            expanded = expandedDropdown,
+                            onDismissRequest = { expandedDropdown = false },
+                            modifier = Modifier.fillMaxWidth()
+                        ) {
+                            bases.forEach { b ->
+                                DropdownMenuItem(
+                                    text = { Text(b.second) },
+                                    onClick = {
+                                        viewModel.baseFrom.value = b.first
+                                        expandedDropdown = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = baseInput,
+                        onValueChange = { viewModel.baseInput.value = it },
+                        label = { Text("Enter number") },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = Color(0xFF2563EB),
+                            focusedLabelColor = Color(0xFF2563EB),
+                            focusedTextColor = textCol,
+                            unfocusedTextColor = textCol
+                        )
+                    )
+
+                    Button(
+                        onClick = { viewModel.convertBase() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("Convert", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    if (baseError != null) {
+                        Text(text = baseError!!, color = Color.Red, fontSize = 12.sp, modifier = Modifier.fillMaxWidth(), textAlign = TextAlign.Center)
+                    }
+
+                    // Converted rows
+                    if (bin.isNotEmpty() || oct.isNotEmpty() || dec.isNotEmpty() || hex.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            ConvertedRow("BIN (2)", bin, isDark)
+                            ConvertedRow("OCT (8)", oct, isDark)
+                            ConvertedRow("DEC (10)", dec, isDark)
+                            ConvertedRow("HEX (16)", hex, isDark)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun ConvertedRow(label: String, value: String, isDark: Boolean) {
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(6.dp))
+            .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
+            .border(1.dp, borderStrongColor(isDark), RoundedCornerShape(6.dp))
+            .padding(10.dp)
+    ) {
+        Text(text = label, color = Color(0xFF2563EB), fontSize = 10.sp, fontWeight = FontWeight.Bold)
+        Text(text = value, color = textCol, fontSize = 14.sp, fontFamily = FontFamily.Monospace, fontWeight = FontWeight.Bold)
+    }
+}
+
+@Composable
+fun EquationSolverDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    val currentType by viewModel.eqnType.collectAsStateWithLifecycle()
+    val inputs by viewModel.eqnInputs.collectAsStateWithLifecycle()
+    val eqnResult by viewModel.eqnResult.collectAsStateWithLifecycle()
+
+    Dialog(onDismissRequest = { viewModel.showEquationSolver.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(12.dp)
+                .testTag("dialog_eqn_solver"),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Equation Solver", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    IconButton(onClick = { viewModel.showEquationSolver.value = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    }
+                }
+
+                // Type Tab Buttons
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    val eqTypes = listOf(
+                        1 to "ax+b=0",
+                        2 to "ax²+bx+c=0",
+                        3 to "ax³+bx²+cx+d=0",
+                        4 to "2x2 Linear",
+                        5 to "3x3 Linear"
+                    )
+
+                    eqTypes.forEach { type ->
+                        val isSelected = currentType == type.first
+                        Button(
+                            onClick = {
+                                viewModel.eqnType.value = type.first
+                                viewModel.eqnInputs.value = emptyMap()
+                                viewModel.eqnResult.value = ""
+                            },
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isSelected) Color(0xFF2563EB) else if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
+                                contentColor = if (isSelected) Color.White else textCol
+                            ),
+                            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                            shape = RoundedCornerShape(6.dp),
+                            modifier = Modifier.height(32.dp)
+                        ) {
+                            Text(type.second, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                        }
+                    }
+                }
+
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(12.dp)
+                        .verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp)
+                ) {
+                    // Title formula
+                    Text(
+                        text = when (currentType) {
+                            1 -> "ax + b = 0"
+                            2 -> "ax² + bx + c = 0"
+                            3 -> "ax³ + bx² + cx + d = 0"
+                            4 -> "a₁x + b₁y = c₁\na₂x + b₂y = c₂"
+                            5 -> "a₁x + b₁y + c₁z = d₁\na₂x + b₂y + c₂z = d₂\na₃x + b₃y + c₃z = d₃"
+                            else -> ""
+                        },
+                        color = textCol,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth(),
+                        fontSize = 14.sp
+                    )
+
+                    // Dynamic inputs fields
+                    val fieldsList = when (currentType) {
+                        1 -> listOf("a", "b")
+                        2 -> listOf("a", "b", "c")
+                        3 -> listOf("a", "b", "c", "d")
+                        4 -> listOf("a1", "b1", "c1", "a2", "b2", "c2")
+                        5 -> listOf("a1", "b1", "c1", "d1", "a2", "b2", "c2", "d2", "a3", "b3", "c3", "d3")
+                        else -> emptyList()
+                    }
+
+                    // Dynamically map list into 2 columns for high fields and single row for smaller
+                    val columns = if (fieldsList.size > 4) 3 else 1
+                    val chunkedFields = fieldsList.chunked(columns)
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        chunkedFields.forEach { rowFields ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(4.dp)
+                            ) {
+                                rowFields.forEach { key ->
+                                    OutlinedTextField(
+                                        value = inputs[key] ?: "",
+                                        onValueChange = {
+                                            val m = inputs.toMutableMap()
+                                            m[key] = it
+                                            viewModel.eqnInputs.value = m
+                                        },
+                                        label = { Text(key) },
+                                        modifier = Modifier
+                                            .weight(1f),
+                                        singleLine = true,
+                                        colors = OutlinedTextFieldDefaults.colors(
+                                            focusedBorderColor = Color(0xFF2563EB),
+                                            focusedLabelColor = Color(0xFF2563EB),
+                                            focusedTextColor = textCol,
+                                            unfocusedTextColor = textCol
+                                        )
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Button(
+                        onClick = { viewModel.solveEquation() },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF2563EB)),
+                        shape = RoundedCornerShape(6.dp)
+                    ) {
+                        Text("SOLVE", color = Color.White, fontWeight = FontWeight.Bold)
+                    }
+
+                    // Solved Result output rendering
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(6.dp))
+                            .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                            .border(2.dp, borderStrongColor(isDark), RoundedCornerShape(6.dp))
+                            .padding(12.dp)
+                    ) {
+                        Text(
+                            text = eqnResult.ifEmpty { "Enter variables and click SOLVE." },
+                            color = textCol,
+                            fontFamily = FontFamily.Monospace,
+                            fontSize = 14.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val context = LocalContext.current
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+
+    Dialog(onDismissRequest = { viewModel.showDevInfo.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.9f)
+                .padding(12.dp)
+                .testTag("dialog_dev_info"),
+            shape = RoundedCornerShape(10.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(panelDarkCol)
+                        .padding(12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "Developer Info", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                    IconButton(onClick = { viewModel.showDevInfo.value = false }) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    }
+                }
+
+                // Content
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .padding(14.dp)
+                        .verticalScroll(rememberScrollState()),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                ) {
+                    // Beautiful custom "H" logo
+                    Box(
+                        modifier = Modifier
+                            .size(70.dp)
+                            .clip(CircleShape)
+                            .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
+                    }
+
+                    Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                    Text(text = "Calculator Developer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp)
+
+                    // Contact action flows
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        // Phone Link
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF2563EB).copy(alpha = 0.1f))
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:01600180139"))
+                                    context.startActivity(intent)
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "📞", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                            Column {
+                                Text(text = "PHONE", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
+                                Text(text = "01600180139", fontSize = 13.sp, color = textCol, fontFamily = FontFamily.Monospace)
+                            }
+                        }
+
+                        // Email Link
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(8.dp))
+                                .background(Color(0xFF2563EB).copy(alpha = 0.1f))
+                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                .clickable {
+                                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:hridoyeasin63@gmail.com"))
+                                    context.startActivity(intent)
+                                }
+                                .padding(10.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(text = "✉️", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                            Column {
+                                Text(text = "EMAIL", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
+                                Text(text = "hridoyeasin63@gmail.com", fontSize = 13.sp, color = textCol)
+                            }
+                        }
+                    }
+
+                    Divider(color = borderStrongColor(isDark), thickness = 1.dp)
+
+                    // Keyboard Combos reference list
+                    Column(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
+                            .border(1.dp, borderStrongColor(isDark), RoundedCornerShape(8.dp))
+                            .padding(10.dp)
+                    ) {
+                        Text(
+                            text = "🔘 BUTTON COMBOS",
+                            color = Color(0xFF2563EB),
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 12.sp,
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center
+                        )
+                        Spacer(modifier = Modifier.height(6.dp))
+
+                        val combos = listOf(
+                            "M" to "DEG ↔ RAD toggle",
+                            "SHIFT + M" to "f(x) Table Mode",
+                            "ALPHA + M" to "Base Converter",
+                            "SHIFT + ALPHA + M" to "Equation Solver",
+                            "SHIFT" to "sin⁻¹, cos⁻¹, tan⁻¹, x³, ³√, eˣ, 10ˣ",
+                            "ALPHA" to "csc, sec, cot, A, B, C, D, E, F",
+                            "SHIFT + ALPHA" to "csc⁻¹, sec⁻¹, cot⁻¹",
+                            "SHIFT + STO" to "Clear All Variables",
+                            "SHIFT + AC" to "Full Hardware Reset",
+                            "SHIFT + %" to "Comma (,)"
+                        )
+
+                        combos.forEach { combo ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 3.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween
+                            ) {
+                                Text(text = combo.first, color = Color(0xFFDC2626), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f))
+                                Text(text = "= " + combo.second, color = textCol, fontSize = 10.sp, modifier = Modifier.weight(1.8f))
+                            }
+                        }
+                    }
+
+                    // Social links action widgets
+                    Text(text = "SOCIAL LINKS", color = Color(0xFF60A5FA), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        SocialNetworkCard("📘", "Facebook", "https://facebook.com/hridoyeasin63", context, Modifier.weight(1f))
+                        SocialNetworkCard("💬", "WhatsApp", "https://wa.me/8801600180139", context, Modifier.weight(1f))
+                        SocialNetworkCard("📱", "IMO", "https://s.imoim.net/jyLtH6", context, Modifier.weight(1f))
+                        SocialNetworkCard("𝕏", "X", "https://x.com/hridoyeasin63", context, Modifier.weight(1f))
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun SocialNetworkCard(emoji: String, name: String, url: String, context: android.content.Context, modifier: Modifier = Modifier) {
+    Card(
+        modifier = modifier
+            .clickable {
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(url))
+                context.startActivity(intent)
+            },
+        colors = CardDefaults.cardColors(containerColor = Color(0xFF2563EB).copy(alpha = 0.15f)),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f))
+    ) {
+        Column(
+            modifier = Modifier.padding(6.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
+        ) {
+            Text(text = emoji, fontSize = 22.sp)
+            Text(text = name, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+        }
+    }
+}
+
+// Helpers
+fun borderStrongColor(isDark: Boolean) = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
