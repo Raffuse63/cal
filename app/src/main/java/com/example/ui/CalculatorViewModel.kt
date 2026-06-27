@@ -49,6 +49,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     val showBaseConverter = MutableStateFlow(false)
     val showEquationSolver = MutableStateFlow(false)
     val showDevInfo = MutableStateFlow(false)
+    val showConstants = MutableStateFlow(false)
 
     // Table view state
     val tableFx = MutableStateFlow("x^2")
@@ -148,7 +149,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty() && (currentExpr.last().isDigit() || currentExpr.last() == ')' || currentExpr.last() == 'π')) {
+        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
             expr.value += "×"
         }
         expr.value += "("
@@ -194,6 +195,21 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 result.value = "0"
             }
             justCalculated.value = false
+        }
+
+        val currentExpr = expr.value
+        if (currentExpr.isNotEmpty()) {
+            val lastChar = currentExpr.last()
+            val requiresMul = if (value == "(") {
+                isImplicitMulRequired(lastChar, currentExpr)
+            } else if (value.any { it.isDigit() }) {
+                isImplicitMulRequired(lastChar, currentExpr) && !lastChar.isDigit() && lastChar != '.'
+            } else {
+                false
+            }
+            if (requiresMul) {
+                expr.value += "×"
+            }
         }
 
         expr.value += value
@@ -307,7 +323,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty() && (currentExpr.last().isDigit() || currentExpr.last() == ')' || currentExpr.last() == 'π')) {
+        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
             expr.value += "×"
         }
 
@@ -322,6 +338,29 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         runLiveCalculation()
     }
 
+    fun pressScientificConstant(symbol: String) {
+        if (isWelcome.value) {
+            isWelcome.value = false
+            expr.value = ""
+            result.value = "0"
+        }
+        
+        if (justCalculated.value) {
+            expr.value = ""
+            result.value = "0"
+            justCalculated.value = false
+        }
+        
+        val currentExpr = expr.value
+        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
+            expr.value += "×"
+        }
+        
+        val symbolToInsert = if (symbol == "e") "𝑒" else symbol
+        expr.value += symbolToInsert
+        runLiveCalculation()
+    }
+
     fun pressFunc(fn: String) {
         if (shift.value && alpha.value && fn == "log") {
             if (justCalculated.value) {
@@ -329,7 +368,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 justCalculated.value = false
             }
             val currentExpr = expr.value
-            if (currentExpr.isNotEmpty() && (currentExpr.last().isDigit() || currentExpr.last() == ')' || currentExpr.last() == 'π' || currentExpr.last().isLetter())) {
+            if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
                 expr.value += "×"
             }
             expr.value += "logbase("
@@ -378,7 +417,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 justCalculated.value = false
             }
             val currentExpr = expr.value
-            if (currentExpr.isNotEmpty() && (currentExpr.last().isDigit() || currentExpr.last() == ')' || currentExpr.last() == 'π' || currentExpr.last().isLetter())) {
+            if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
                 expr.value += "×"
             }
             expr.value += variables.value[varName].toString()
@@ -395,7 +434,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val currentExpr = expr.value
-        if (!noImplicitMul.contains(fn) && currentExpr.isNotEmpty() && (currentExpr.last().isDigit() || currentExpr.last() == ')' || currentExpr.last() == 'π' || currentExpr.last().isLetter())) {
+        if (!noImplicitMul.contains(fn) && currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
             expr.value += "×"
         }
 
@@ -654,6 +693,26 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (prefix.isNotEmpty() && !expr.value.endsWith("0b") && !expr.value.endsWith("0o") && !expr.value.endsWith("0x")) {
             expr.value += prefix
         }
+    }
+
+    private fun isImplicitMulRequired(lastChar: Char, currentExpr: String): Boolean {
+        if (calcBase.value != 10) {
+            return false
+        }
+        if (lastChar == 'E') {
+            return false
+        }
+        if (lastChar.isDigit() || lastChar == ')' || lastChar == 'π' || lastChar == 'e' || currentExpr.endsWith("𝑒")) {
+            return true
+        }
+        if (lastChar.isLetter()) {
+            return true
+        }
+        val specials = listOf('ₑ', 'ₚ', 'ₙ', 'μ', '₀', '∞', 'ₐ', 'ₑ', 'ₙ', 'ₕ', 'ₘ', '☉', '⊕', 'ħ', 'α', 'σ')
+        if (lastChar in specials) {
+            return true
+        }
+        return false
     }
 
     private fun runLiveCalculation() {

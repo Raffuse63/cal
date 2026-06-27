@@ -16,8 +16,11 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -41,6 +44,7 @@ fun CalculatorScreen(
     val expr by viewModel.expr.collectAsStateWithLifecycle()
     val result by viewModel.result.collectAsStateWithLifecycle()
     val isWelcome by viewModel.isWelcome.collectAsStateWithLifecycle()
+    val justCalculated by viewModel.justCalculated.collectAsStateWithLifecycle()
 
     val shift by viewModel.shift.collectAsStateWithLifecycle()
     val alpha by viewModel.alpha.collectAsStateWithLifecycle()
@@ -54,6 +58,7 @@ fun CalculatorScreen(
     val showBaseConverter by viewModel.showBaseConverter.collectAsStateWithLifecycle()
     val showEquationSolver by viewModel.showEquationSolver.collectAsStateWithLifecycle()
     val showDevInfo by viewModel.showDevInfo.collectAsStateWithLifecycle()
+    val showConstants by viewModel.showConstants.collectAsStateWithLifecycle()
 
     // Stylings from CSS
     val pageBg = if (isDark) Color(0xFF0A0E1A) else Color(0xFFFFFFFF)
@@ -100,16 +105,17 @@ fun CalculatorScreen(
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 0.5.sp
                     )
-                    IconButton(
-                        onClick = { viewModel.toggleTheme() },
+                    Box(
+                        contentAlignment = Alignment.Center,
                         modifier = Modifier
-                            .size(28.dp)
-                            .clip(RoundedCornerShape(6.dp))
+                            .size(20.dp)
+                            .clip(RoundedCornerShape(4.dp))
                             .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
+                            .clickable { viewModel.toggleTheme() }
                     ) {
                         Text(
                             text = if (isDark) "☀️" else "🌙",
-                            fontSize = 12.sp,
+                            fontSize = 11.sp,
                             fontWeight = FontWeight.Bold
                         )
                     }
@@ -341,7 +347,15 @@ fun CalculatorScreen(
                                     color = lcdTextColor,
                                     textAlign = TextAlign.End,
                                     maxLines = 1,
-                                    modifier = Modifier.testTag("result_display")
+                                    modifier = Modifier
+                                        .testTag("result_display")
+                                        .then(
+                                            if (!justCalculated) {
+                                                Modifier.alpha(0.5f)
+                                            } else {
+                                                Modifier
+                                            }
+                                        )
                                 )
                             }
                         }
@@ -401,6 +415,10 @@ fun CalculatorScreen(
     if (showDevInfo) {
         InfoDialog(viewModel, isDark)
     }
+
+    if (showConstants) {
+        ConstantsDialog(viewModel, isDark)
+    }
 }
 
 // Subcomponent grids
@@ -447,26 +465,26 @@ fun BasicCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean) {
             BasicBtn("9", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("9") }
             BasicBtn("-", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("-") }
         }
-        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
-            BasicBtn("4", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("4") }
-            BasicBtn("5", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("5") }
-            BasicBtn("6", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("6") }
-            BasicBtn("+", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressOp("+") }
-        }
         Row(modifier = Modifier.weight(2f).fillMaxWidth()) {
             Column(modifier = Modifier.weight(3f).fillMaxHeight()) {
+                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
+                    BasicBtn("4", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("4") }
+                    BasicBtn("5", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("5") }
+                    BasicBtn("6", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("6") }
+                }
                 Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
                     BasicBtn("1", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("1") }
                     BasicBtn("2", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("2") }
                     BasicBtn("3", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("3") }
                 }
-                Row(modifier = Modifier.weight(1f).fillMaxWidth()) {
-                    BasicBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey(".") }
-                    BasicBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("0") }
-                    BasicBtn("%", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("%") }
-                }
             }
-            BasicBtn("=", bg = accentBg, textColor = Color.White, modifier = Modifier.weight(1f).fillMaxHeight()) { viewModel.pressEq() }
+            BasicBtn("+", bg = opBg, textColor = Color.White, modifier = Modifier.weight(1f).fillMaxHeight()) { viewModel.pressOp("+") }
+        }
+        Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
+            BasicBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey(".") }
+            BasicBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("0") }
+            BasicBtn("%", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(1f)) { viewModel.pressKey("%") }
+            BasicBtn("=", bg = accentBg, textColor = Color.White, modifier = Modifier.weight(1f)) { viewModel.pressEq() }
         }
     }
 }
@@ -589,7 +607,7 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
             SciBtn("M", bg = funcBg, textColor = Color.White, topLabel = "tab", alphaLabel = "bas", bottomLabel = "equ", modifier = Modifier.weight(10f)) { viewModel.pressModeMenu() }
             SciBtn("(", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("(")) { viewModel.pressParen() }
             SciBtn(")", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled(")")) { viewModel.pressKey(")") }
-            SciBtn("☷", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f)) { viewModel.showDevInfo.value = true }
+            SciBtn("CNST", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f)) { viewModel.showConstants.value = true }
         }
         // Row 2
         Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
@@ -649,7 +667,7 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
         Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
             SciBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("0")) { viewModel.pressBaseDigit("0") }
             SciBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled(".")) { viewModel.pressKey(".") }
-            SciBtn("(±)", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("(±)")) { viewModel.pressNeg() }
+            SciBtn("±", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("±")) { viewModel.pressNeg() }
             SciBtn("%", bg = funcBg, textColor = Color.White, topLabel = ",", modifier = Modifier.weight(10f), enabled = isButtonEnabled("%")) { viewModel.pressKey("%") }
             SciBtn("Ans", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("ans")) { viewModel.pressAns() }
             SciBtn("=", bg = accentBg, textColor = Color.White, topLabel = "=", modifier = Modifier.weight(10f), enabled = isButtonEnabled("=")) { viewModel.pressEq() }
@@ -1371,10 +1389,10 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        SocialNetworkCard("📘", "Facebook", "https://facebook.com/hridoyeasin63", context, Modifier.weight(1f))
-                        SocialNetworkCard("💬", "WhatsApp", "https://wa.me/8801600180139", context, Modifier.weight(1f))
-                        SocialNetworkCard("📱", "IMO", "https://s.imoim.net/jyLtH6", context, Modifier.weight(1f))
-                        SocialNetworkCard("𝕏", "X", "https://x.com/hridoyeasin63", context, Modifier.weight(1f))
+                        SocialNetworkCard("Facebook", "https://facebook.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                        SocialNetworkCard("WhatsApp", "https://wa.me/8801600180139", context, textCol, Modifier.weight(1f))
+                        SocialNetworkCard("IMO", "https://s.imoim.net/jyLtH6", context, textCol, Modifier.weight(1f))
+                        SocialNetworkCard("X", "https://x.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
                     }
                 }
             }
@@ -1383,7 +1401,139 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
 }
 
 @Composable
-fun SocialNetworkCard(emoji: String, name: String, url: String, context: android.content.Context, modifier: Modifier = Modifier) {
+fun FacebookLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val w = size.width
+        val h = size.height
+        drawCircle(
+            color = Color(0xFF1877F2),
+            radius = w / 2f
+        )
+        val scale = w / 24f
+        val path = Path().apply {
+            moveTo(15f * scale, 21f * scale)
+            lineTo(15f * scale, 13.5f * scale)
+            lineTo(17.5f * scale, 13.5f * scale)
+            lineTo(17.8f * scale, 10.5f * scale)
+            lineTo(15f * scale, 10.5f * scale)
+            lineTo(15f * scale, 8.8f * scale)
+            quadraticTo(15f * scale, 8f * scale, 15.8f * scale, 7.5f * scale)
+            quadraticTo(16.3f * scale, 7.2f * scale, 17.5f * scale, 7.2f * scale)
+            lineTo(17.5f * scale, 4.5f * scale)
+            quadraticTo(15.5f * scale, 4.3f * scale, 14.2f * scale, 4.8f * scale)
+            quadraticTo(12.5f * scale, 5.5f * scale, 11.8f * scale, 7f * scale)
+            quadraticTo(11.2f * scale, 8.2f * scale, 11.2f * scale, 10.5f * scale)
+            lineTo(9.5f * scale, 10.5f * scale)
+            lineTo(9.5f * scale, 13.5f * scale)
+            lineTo(11.2f * scale, 13.5f * scale)
+            lineTo(11.2f * scale, 21f * scale)
+            close()
+        }
+        drawPath(path = path, color = Color.White)
+    }
+}
+
+@Composable
+fun WhatsAppLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val w = size.width
+        val h = size.height
+        val scale = w / 24f
+        
+        val bubblePath = Path().apply {
+            addOval(Rect(0f, 0f, w, h))
+        }
+        drawPath(path = bubblePath, color = Color(0xFF25D366))
+        
+        val tailPath = Path().apply {
+            moveTo(4f * scale, 17f * scale)
+            lineTo(2f * scale, 22f * scale)
+            lineTo(7.5f * scale, 20f * scale)
+            close()
+        }
+        drawPath(path = tailPath, color = Color(0xFF25D366))
+
+        val phonePath = Path().apply {
+            moveTo(8f * scale, 7.5f * scale)
+            quadraticTo(9f * scale, 6.5f * scale, 10f * scale, 7.5f * scale)
+            lineTo(11f * scale, 8.5f * scale)
+            quadraticTo(12f * scale, 9.5f * scale, 11f * scale, 10.5f * scale)
+            lineTo(10.2f * scale, 11.3f * scale)
+            quadraticTo(10.8f * scale, 12.8f * scale, 12.2f * scale, 14.2f * scale)
+            quadraticTo(13.6f * scale, 14.8f * scale, 14.7f * scale, 14f * scale)
+            lineTo(15.5f * scale, 13.2f * scale)
+            quadraticTo(16.5f * scale, 12.2f * scale, 17.5f * scale, 13.2f * scale)
+            lineTo(18.5f * scale, 14.2f * scale)
+            quadraticTo(19.5f * scale, 15.2f * scale, 18.5f * scale, 16.2f * scale)
+            quadraticTo(17f * scale, 17.7f * scale, 14.5f * scale, 17.5f * scale)
+            quadraticTo(11f * scale, 17.2f * scale, 8.5f * scale, 13.5f * scale)
+            quadraticTo(6f * scale, 9.8f * scale, 7.5f * scale, 8.5f * scale)
+            close()
+        }
+        drawPath(path = phonePath, color = Color.White)
+    }
+}
+
+@Composable
+fun IMOLogo(modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(20.dp)
+            .clip(CircleShape)
+            .background(Color(0xFF1D9BF0)),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(
+            text = "imo",
+            color = Color.White,
+            fontSize = 9.sp,
+            fontWeight = FontWeight.Bold,
+            fontFamily = FontFamily.SansSerif,
+            modifier = Modifier.padding(bottom = 1.dp)
+        )
+    }
+}
+
+@Composable
+fun XLogo(modifier: Modifier = Modifier) {
+    Canvas(modifier = modifier.size(20.dp)) {
+        val w = size.width
+        val h = size.height
+        val scale = w / 24f
+        
+        drawCircle(color = Color.Black, radius = w / 2f)
+        
+        val thickPath = Path().apply {
+            moveTo(4.5f * scale, 4.5f * scale)
+            lineTo(9.5f * scale, 4.5f * scale)
+            lineTo(19.5f * scale, 19.5f * scale)
+            lineTo(14.5f * scale, 19.5f * scale)
+            close()
+        }
+        drawPath(path = thickPath, color = Color.White)
+        
+        val hollowPath = Path().apply {
+            moveTo(6.5f * scale, 4.5f * scale)
+            lineTo(8.0f * scale, 4.5f * scale)
+            lineTo(17.5f * scale, 19.5f * scale)
+            lineTo(16.0f * scale, 19.5f * scale)
+            close()
+        }
+        drawPath(path = hollowPath, color = Color.Black)
+        
+        val thinPath = Path().apply {
+            moveTo(19.5f * scale, 4.5f * scale)
+            lineTo(18.0f * scale, 4.5f * scale)
+            lineTo(4.5f * scale, 19.5f * scale)
+            lineTo(6.0f * scale, 19.5f * scale)
+            close()
+        }
+        drawPath(path = thinPath, color = Color.White)
+    }
+}
+
+@Composable
+fun SocialNetworkCard(name: String, url: String, context: android.content.Context, textColor: Color, modifier: Modifier = Modifier) {
     Card(
         modifier = modifier
             .clickable {
@@ -1395,15 +1545,264 @@ fun SocialNetworkCard(emoji: String, name: String, url: String, context: android
         border = BorderStroke(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f))
     ) {
         Column(
-            modifier = Modifier.padding(6.dp),
+            modifier = Modifier.padding(vertical = 6.dp, horizontal = 2.dp).fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Text(text = emoji, fontSize = 22.sp)
-            Text(text = name, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+            Box(
+                modifier = Modifier.size(20.dp),
+                contentAlignment = Alignment.Center
+            ) {
+                when (name.lowercase()) {
+                    "facebook" -> FacebookLogo()
+                    "whatsapp" -> WhatsAppLogo()
+                    "imo" -> IMOLogo()
+                    "x" -> XLogo()
+                }
+            }
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(text = name, fontSize = 9.sp, fontWeight = FontWeight.Bold, color = textColor)
         }
     }
 }
 
 // Helpers
 fun borderStrongColor(isDark: Boolean) = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+
+data class SciConstant(
+    val no: String,
+    val name: String,
+    val symbol: String,
+    val valueText: String
+)
+
+val scientificConstants = listOf(
+    SciConstant("01", "Speed of Light", "c", "2.99792458×10⁸"),
+    SciConstant("02", "Standard Gravity", "g", "9.80665"),
+    SciConstant("03", "Gravitational Constant", "G", "6.67430×10⁻¹¹"),
+    SciConstant("04", "Magnetic Constant", "μ₀", "1.25663706212×10⁻⁶"),
+    SciConstant("05", "Electric Constant", "ε₀", "8.8541878128×10⁻¹²"),
+    SciConstant("06", "Planck Constant", "h", "6.62607015×10⁻³⁴"),
+    SciConstant("07", "Reduced Planck Constant", "ħ", "1.054571817×10⁻³⁴"),
+    SciConstant("08", "Elementary Charge", "e", "1.602176634×10⁻¹⁹"),
+    SciConstant("09", "Electron Mass", "mₑ", "9.1093837015×10⁻³¹"),
+    SciConstant("10", "Proton Mass", "mₚ", "1.67262192369×10⁻²⁷"),
+    SciConstant("11", "Neutron Mass", "mₙ", "1.67492749804×10⁻²⁷"),
+    SciConstant("12", "Muon Mass", "mμ", "1.883531627×10⁻²⁸"),
+    SciConstant("13", "Bohr Radius", "a₀", "5.29177210903×10⁻¹¹"),
+    SciConstant("14", "Fine-Structure Constant", "α", "7.2973525693×10⁻³"),
+    SciConstant("15", "Classical Electron Radius", "rₑ", "2.8179403262×10⁻¹⁵"),
+    SciConstant("16", "Compton Wavelength", "λc", "2.42631023867×10⁻¹²"),
+    SciConstant("17", "Rydberg Constant", "R∞", "1.0973731568×10⁷"),
+    SciConstant("18", "Avogadro Constant", "Nₐ", "6.02214076×10²³"),
+    SciConstant("19", "Boltzmann Constant", "k", "1.380649×10⁻²³"),
+    SciConstant("20", "Gas Constant", "R", "8.314462618"),
+    SciConstant("21", "Faraday Constant", "F", "96485.33212"),
+    SciConstant("22", "Bohr Magneton", "μB", "9.2740100783×10⁻²⁴"),
+    SciConstant("23", "Nuclear Magneton", "μN", "5.0507837461×10⁻²⁷"),
+    SciConstant("24", "Electron Magnetic Moment", "μₑ", "−9.2847647043×10⁻²⁴"),
+    SciConstant("25", "Proton Magnetic Moment", "μₚ", "1.41060679736×10⁻²⁶"),
+    SciConstant("26", "Neutron Magnetic Moment", "μₙ", "−9.6623651×10⁻²⁷"),
+    SciConstant("27", "Atomic Mass Constant", "u", "1.66053906660×10⁻²⁷"),
+    SciConstant("28", "Electron Volt", "eV", "1.602176634×10⁻¹⁹"),
+    SciConstant("29", "Hartree Energy", "Eₕ", "4.359744722×10⁻¹⁸"),
+    SciConstant("30", "Stefan–Boltzmann Constant", "σ", "5.670374419×10⁻⁸"),
+    SciConstant("31", "Wien Constant", "b", "2.897771955×10⁻³"),
+    SciConstant("32", "Standard Atmosphere", "atm", "101325"),
+    SciConstant("33", "Molar Volume", "Vₘ", "22.413962×10⁻³"),
+    SciConstant("34", "Astronomical Unit", "AU", "1.495978707×10¹¹"),
+    SciConstant("35", "Light Year", "ly", "9.460730472×10¹⁵"),
+    SciConstant("36", "Parsec", "pc", "3.085677581×10¹⁶"),
+    SciConstant("37", "Solar Mass", "M☉", "1.98847×10³⁰"),
+    SciConstant("38", "Earth Mass", "M⊕", "5.9722×10²⁴"),
+    SciConstant("39", "Earth Radius", "R⊕", "6.371×10⁶"),
+    SciConstant("40", "Solar Radius", "R☉", "6.957×10⁸"),
+    SciConstant("41", "Solar Luminosity", "L☉", "3.828×10²⁶"),
+    SciConstant("42", "Standard Pressure", "p₀", "100000"),
+    SciConstant("43", "Vacuum Impedance", "Z₀", "376.730313668"),
+    SciConstant("44", "Josephson Constant", "KJ", "4.835978484×10¹⁴"),
+    SciConstant("45", "von Klitzing Constant", "RK", "25812.80745"),
+    SciConstant("46", "Coulomb Constant", "kₑ", "8.9875517923×10⁹"),
+    SciConstant("47", "Loschmidt Constant", "n₀", "2.686780111×10²⁵")
+)
+
+@Composable
+fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val cardBorder = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+    val headerBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)
+    val rowAltBg = if (isDark) Color(0xFF1E293B).copy(alpha = 0.5f) else Color(0xFFF8FAFC)
+    val accentBlue = Color(0xFF2563EB)
+
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredConstants = remember(searchQuery) {
+        if (searchQuery.trim().isEmpty()) {
+            scientificConstants
+        } else {
+            val query = searchQuery.lowercase()
+            scientificConstants.filter {
+                it.name.lowercase().contains(query) || it.symbol.lowercase().contains(query)
+            }
+        }
+    }
+
+    Dialog(onDismissRequest = { viewModel.showConstants.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.85f)
+                .padding(4.dp)
+                .testTag("dialog_constants"),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, cardBorder)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerBg)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Scientific Constants",
+                        color = textCol,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { viewModel.showConstants.value = false },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close dialog",
+                            tint = textCol.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // Search Bar
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    placeholder = { Text("Search by name or symbol...", fontSize = 12.sp) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    singleLine = true,
+                    shape = RoundedCornerShape(8.dp),
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = accentBlue,
+                        unfocusedBorderColor = cardBorder.copy(alpha = 0.5f)
+                    ),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = textCol),
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = "Search icon",
+                            tint = textCol.copy(alpha = 0.5f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
+                )
+
+                // Table Header
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerBg.copy(alpha = 0.7f))
+                        .padding(horizontal = 8.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(text = "No", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
+                    Text(text = "Constant", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.42f))
+                    Text(text = "Symbol", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.18f), textAlign = TextAlign.Center)
+                    Text(text = "Value", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.40f))
+                }
+
+                Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
+
+                // Constants List Table Body
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                ) {
+                    if (filteredConstants.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No constants match search query.",
+                                    color = textCol.copy(alpha = 0.5f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    } else {
+                        items(filteredConstants) { constant ->
+                            val isEven = constant.no.toIntOrNull()?.let { it % 2 == 0 } ?: false
+                            val rowBg = if (isEven) rowAltBg else Color.Transparent
+
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(rowBg)
+                                    .clickable {
+                                        viewModel.pressScientificConstant(constant.symbol)
+                                        viewModel.showConstants.value = false
+                                    }
+                                    .padding(horizontal = 8.dp, vertical = 10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(
+                                    text = constant.no,
+                                    color = textCol.copy(alpha = 0.6f),
+                                    fontSize = 11.sp,
+                                    modifier = Modifier.width(28.dp),
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = constant.name,
+                                    color = textCol,
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Medium,
+                                    modifier = Modifier.weight(0.42f)
+                                )
+                                Text(
+                                    text = constant.symbol,
+                                    color = accentBlue,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    fontFamily = FontFamily.Serif,
+                                    modifier = Modifier.weight(0.18f),
+                                    textAlign = TextAlign.Center
+                                )
+                                Text(
+                                    text = constant.valueText,
+                                    color = textCol.copy(alpha = 0.8f),
+                                    fontSize = 10.sp,
+                                    fontFamily = FontFamily.Monospace,
+                                    modifier = Modifier.weight(0.40f)
+                                )
+                            }
+                            Divider(color = cardBorder.copy(alpha = 0.15f), thickness = 0.5.dp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

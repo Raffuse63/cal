@@ -216,11 +216,84 @@ class CalculatorEngine(
         var preprocessed = expr
             .replace("Ans", ans.toString())
             .replace("π", Math.PI.toString())
-            .replace("e", Math.E.toString())
+
+        if (calcBase != 16) {
+            preprocessed = preprocessed.replace("\\be\\b".toRegex(), Math.E.toString())
+        }
+
+        if (calcBase == 10) {
+            val expRegexStart = "(^|[^\\w.])E([+-]?\\d+)".toRegex()
+            while (preprocessed.contains(expRegexStart)) {
+                preprocessed = preprocessed.replace(expRegexStart, "$1(1*10^($2))")
+            }
+            val expRegex = "(\\d*\\.\\d+|\\d+)E([+-]?\\d+)".toRegex()
+            while (preprocessed.contains(expRegex)) {
+                preprocessed = preprocessed.replace(expRegex, "($1*10^($2))")
+            }
+        }
+
+        // Substitute scientific constants
+        preprocessed = preprocessed
+            .replace("mₑ", "(9.1093837015*10^-31)")
+            .replace("mₚ", "(1.67262192369*10^-27)")
+            .replace("mₙ", "(1.67492749804*10^-27)")
+            .replace("mμ", "(1.883531627*10^-28)")
+            .replace("a₀", "(5.29177210903*10^-11)")
+            .replace("rₑ", "(2.8179403262*10^-15)")
+            .replace("λc", "(2.42631023867*10^-12)")
+            .replace("R∞", "(1.0973731568*10^7)")
+            .replace("Nₐ", "(6.02214076*10^23)")
+            .replace("μB", "(9.2740100783*10^-24)")
+            .replace("μN", "(5.0507837461*10^-27)")
+            .replace("μₑ", "(-9.2847647043*10^-24)")
+            .replace("μₚ", "(1.41060679736*10^-26)")
+            .replace("μₙ", "(-9.6623651*10^-27)")
+            .replace("eV", "(1.602176634*10^-19)")
+            .replace("Eₕ", "(4.359744722*10^-18)")
+            .replace("atm", "(101325)")
+            .replace("Vₘ", "(22.413962*10^-3)")
+            .replace("AU", "(1.495978707*10^11)")
+            .replace("ly", "(9.460730472*10^15)")
+            .replace("pc", "(3.085677581*10^16)")
+            .replace("M☉", "(1.98847*10^30)")
+            .replace("M⊕", "(5.9722*10^24)")
+            .replace("R⊕", "(6.371*10^6)")
+            .replace("R☉", "(6.957*10^8)")
+            .replace("L☉", "(3.828*10^26)")
+            .replace("p₀", "(100000)")
+            .replace("Z₀", "(376.730313668)")
+            .replace("KJ", "(4.835978484*10^14)")
+            .replace("RK", "(25812.80745)")
+            .replace("kₑ", "(8.9875517923*10^9)")
+            .replace("n₀", "(2.686780111*10^25)")
+            .replace("μ₀", "(1.25663706212*10^-6)")
+            .replace("ε₀", "(8.8541878128*10^-12)")
+            .replace("ħ", "(1.054571817*10^-34)")
+            .replace("α", "(7.2973525693*10^-3)")
+            .replace("σ", "(5.670374419*10^-8)")
+            .replace("𝑒", "(1.602176634*10^-19)")
+
+        // Standalone letters with word boundaries
+        preprocessed = preprocessed
+            .replace("\\bg\\b".toRegex(), "(9.80665)")
+            .replace("\\bG\\b".toRegex(), "(6.67430*10^-11)")
+            .replace("\\bh\\b".toRegex(), "(6.62607015*10^-34)")
+            .replace("\\bk\\b".toRegex(), "(1.380649*10^-23)")
+            .replace("\\bR\\b".toRegex(), "(8.314462618)")
+            .replace("\\bu\\b".toRegex(), "(1.66053906660*10^-27)")
+
+        if (calcBase != 16) {
+            preprocessed = preprocessed
+                .replace("\\bc\\b".toRegex(), "(2.99792458*10^8)")
+                .replace("\\bF\\b".toRegex(), "(96485.33212)")
+                .replace("\\bb\\b".toRegex(), "(2.897771955*10^-3)")
+        }
 
         // Substitute variables A, B, C, D, E, F
-        variables.forEach { (name, value) ->
-            preprocessed = preprocessed.replace("\\b$name\\b".toRegex(), value.toString())
+        if (calcBase != 16) {
+            variables.forEach { (name, value) ->
+                preprocessed = preprocessed.replace("\\b$name\\b".toRegex(), value.toString())
+            }
         }
 
         // Unary minus representation in clean JS replace: replace(/\(\-\)(?![0-9(])/g, '(-)1') and replace(/\(\-\)/g, '(0-1)*')
@@ -299,7 +372,7 @@ class CalculatorEngine(
             if (eat('(')) {
                 x = parseExpression()
                 eat(')')
-            } else if (ch in '0'..'9' || ch == '.') {
+            } else if (ch in '0'..'9' || ch == '.' || (engine.calcBase == 16 && ch.uppercaseChar() in 'A'..'F')) {
                 while (ch in '0'..'9' || ch == '.' || (engine.calcBase == 16 && ch.uppercaseChar() in 'A'..'F')) {
                     nextChar()
                 }
