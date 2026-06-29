@@ -104,6 +104,18 @@ class ExampleUnitTest {
 
     val val4 = engine.evaluate("2.99792458×10⁸")
     assertEquals(2.99792458e8, val4, 1.0)
+
+    val val5 = engine.evaluate("3E6")
+    assertEquals(3000000.0, val5, 1e-9)
+
+    val val6 = engine.evaluate("3E-6")
+    assertEquals(0.000003, val6, 1e-12)
+
+    val val7 = engine.evaluate("3E+6")
+    assertEquals(3000000.0, val7, 1e-9)
+
+    val val8 = engine.evaluate("3E6+5")
+    assertEquals(3000005.0, val8, 1e-9)
   }
 }
 

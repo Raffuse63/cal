@@ -429,6 +429,109 @@ fun CalculatorScreen(
 
 // Subcomponent grids
 @Composable
+fun BasicBtnTop(label: String, bg: Color, textColor: Color, isDark: Boolean, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Button(
+        onClick = onClick,
+        modifier = modifier
+            .fillMaxHeight()
+            .padding(3.dp)
+            .testTag("btn_basic_$label"),
+        colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = textColor),
+        shape = RoundedCornerShape(10.dp),
+        contentPadding = PaddingValues(0.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isDark) Color(0xFF334155).copy(alpha = 0.5f) else Color(0xFFE2E8F0)
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
+    ) {
+        Text(text = label, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+@Composable
+fun SciBtnTop(
+    label: String,
+    bg: Color,
+    textColor: Color,
+    isDark: Boolean,
+    funcBg: Color,
+    shiftLabelColor: Color,
+    alphaLabelColor: Color,
+    bottomLabelColor: Color,
+    topLabel: String = "",
+    alphaLabel: String = "",
+    bottomLabel: String = "",
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    onClick: () -> Unit
+) {
+    val buttonOpacity = if (enabled) 1f else 0.40f
+    val resolvedTextColor = if (bg == funcBg && textColor == Color.White) {
+        if (isDark) Color(0xFFCBD5E1) else Color(0xFF312E81)
+    } else {
+        textColor
+    }
+
+    Button(
+        onClick = { if (enabled) onClick() },
+        modifier = modifier
+            .fillMaxHeight()
+            .padding(2.dp),
+        colors = ButtonDefaults.buttonColors(containerColor = bg.copy(alpha = buttonOpacity), contentColor = resolvedTextColor.copy(alpha = buttonOpacity)),
+        shape = RoundedCornerShape(8.dp),
+        contentPadding = PaddingValues(0.dp),
+        border = BorderStroke(
+            width = 1.dp,
+            color = if (isDark) Color(0xFF334155).copy(alpha = 0.3f) else Color(0xFFE2E8F0)
+        ),
+        elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize()) {
+            if (topLabel.isNotEmpty()) {
+                Text(
+                    text = topLabel,
+                    color = shiftLabelColor.copy(alpha = buttonOpacity),
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopStart)
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            if (alphaLabel.isNotEmpty()) {
+                Text(
+                    text = alphaLabel,
+                    color = alphaLabelColor.copy(alpha = buttonOpacity),
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.TopEnd)
+                        .padding(horizontal = 4.dp, vertical = 2.dp)
+                )
+            }
+            Text(
+                text = label,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.Center)
+            )
+            if (bottomLabel.isNotEmpty()) {
+                Text(
+                    text = bottomLabel,
+                    color = bottomLabelColor.copy(alpha = buttonOpacity),
+                    fontSize = 7.sp,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier
+                        .align(Alignment.BottomCenter)
+                        .padding(bottom = 2.dp)
+                )
+            }
+        }
+    }
+}
+
+@Composable
 fun BasicCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean) {
     val buttonBg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
     val buttonTextColor = if (isDark) Color(0xFFF1F5F9) else Color(0xFF1E293B)
@@ -438,23 +541,7 @@ fun BasicCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean) {
 
     @Composable
     fun BasicBtn(label: String, bg: Color, textColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
-        Button(
-            onClick = onClick,
-            modifier = modifier
-                .fillMaxHeight()
-                .padding(3.dp)
-                .testTag("btn_basic_$label"),
-            colors = ButtonDefaults.buttonColors(containerColor = bg, contentColor = textColor),
-            shape = RoundedCornerShape(10.dp),
-            contentPadding = PaddingValues(0.dp),
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (isDark) Color(0xFF334155).copy(alpha = 0.5f) else Color(0xFFE2E8F0)
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 3.dp, pressedElevation = 1.dp)
-        ) {
-            Text(text = label, fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-        }
+        BasicBtnTop(label, bg, textColor, isDark, modifier, onClick)
     }
 
     Column(modifier = Modifier.fillMaxSize()) {
@@ -520,69 +607,22 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
         enabled: Boolean = true,
         onClick: () -> Unit
     ) {
-        val buttonOpacity = if (enabled) 1f else 0.40f
-        val resolvedTextColor = if (bg == funcBg && textColor == Color.White) {
-            if (isDark) Color(0xFFCBD5E1) else Color(0xFF312E81)
-        } else {
-            textColor
-        }
-
-        Button(
-            onClick = { if (enabled) onClick() },
-            modifier = modifier
-                .fillMaxHeight()
-                .padding(2.dp),
-            colors = ButtonDefaults.buttonColors(containerColor = bg.copy(alpha = buttonOpacity), contentColor = resolvedTextColor.copy(alpha = buttonOpacity)),
-            shape = RoundedCornerShape(8.dp),
-            contentPadding = PaddingValues(0.dp),
-            border = BorderStroke(
-                width = 1.dp,
-                color = if (isDark) Color(0xFF334155).copy(alpha = 0.3f) else Color(0xFFE2E8F0)
-            ),
-            elevation = ButtonDefaults.buttonElevation(defaultElevation = 2.dp, pressedElevation = 1.dp)
-        ) {
-            Box(modifier = Modifier.fillMaxSize()) {
-                if (topLabel.isNotEmpty()) {
-                    Text(
-                        text = topLabel,
-                        color = shiftLabelColor.copy(alpha = buttonOpacity),
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.TopStart)
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                }
-                if (alphaLabel.isNotEmpty()) {
-                    Text(
-                        text = alphaLabel,
-                        color = alphaLabelColor.copy(alpha = buttonOpacity),
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.TopEnd)
-                            .padding(horizontal = 4.dp, vertical = 2.dp)
-                    )
-                }
-                Text(
-                    text = label,
-                    fontSize = 14.sp,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier.align(Alignment.Center)
-                )
-                if (bottomLabel.isNotEmpty()) {
-                    Text(
-                        text = bottomLabel,
-                        color = bottomLabelColor.copy(alpha = buttonOpacity),
-                        fontSize = 7.sp,
-                        fontWeight = FontWeight.Bold,
-                        modifier = Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(bottom = 2.dp)
-                    )
-                }
-            }
-        }
+        SciBtnTop(
+            label = label,
+            bg = bg,
+            textColor = textColor,
+            isDark = isDark,
+            funcBg = funcBg,
+            shiftLabelColor = shiftLabelColor,
+            alphaLabelColor = alphaLabelColor,
+            bottomLabelColor = bottomLabelColor,
+            topLabel = topLabel,
+            alphaLabel = alphaLabel,
+            bottomLabel = bottomLabel,
+            modifier = modifier,
+            enabled = enabled,
+            onClick = onClick
+        )
     }
 
     // Determine disabled items in base modes representing identical JS updateBaseButtons rules
@@ -1734,9 +1774,9 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Constant", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.45f))
-                    Text(text = "Symbol", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.18f), textAlign = TextAlign.Center)
-                    Text(text = "Value", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.37f))
+                    Text(text = "Constant", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.38f))
+                    Text(text = "Symbol", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.14f), textAlign = TextAlign.Center)
+                    Text(text = "Value", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.48f))
                 }
 
                 Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
@@ -1784,7 +1824,7 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                     color = textCol,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(0.45f)
+                                    modifier = Modifier.weight(0.38f)
                                 )
                                 Text(
                                     text = constant.symbol,
@@ -1792,7 +1832,7 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                     fontSize = 12.sp,
                                     fontWeight = FontWeight.Bold,
                                     fontFamily = FontFamily.Serif,
-                                    modifier = Modifier.weight(0.18f),
+                                    modifier = Modifier.weight(0.14f),
                                     textAlign = TextAlign.Center
                                 )
                                 Text(
@@ -1800,7 +1840,7 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                     color = textCol.copy(alpha = 0.8f),
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.weight(0.37f)
+                                    modifier = Modifier.weight(0.48f)
                                 )
                             }
                             Divider(color = cardBorder.copy(alpha = 0.15f), thickness = 0.5.dp)

@@ -253,17 +253,6 @@ class CalculatorEngine(
             "^($translated)"
         }
 
-        // Initial Unicode-aware implicit multiplication pass to ensure scientific constants have correct word boundaries
-        if (calcBase != 16) {
-            preprocessed = preprocessed.replace("(\\d|\\)|π)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
-            preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
-            preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
-        }
-
-        if (calcBase != 16) {
-            preprocessed = preprocessed.replace("\\be\\b".toRegex(), Math.E.toString())
-        }
-
         if (calcBase == 10) {
             val expRegexStart = "(^|[^\\w.])E([+-]?\\d+)".toRegex()
             while (preprocessed.contains(expRegexStart)) {
@@ -273,6 +262,17 @@ class CalculatorEngine(
             while (preprocessed.contains(expRegex)) {
                 preprocessed = preprocessed.replace(expRegex, "($1*10^($2))")
             }
+        }
+
+        // Initial Unicode-aware implicit multiplication pass to ensure scientific constants have correct word boundaries
+        if (calcBase != 16) {
+            preprocessed = preprocessed.replace("(\\d|\\)|π)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
+        }
+
+        if (calcBase != 16) {
+            preprocessed = preprocessed.replace("\\be\\b".toRegex(), Math.E.toString())
         }
 
         // Substitute scientific constants
