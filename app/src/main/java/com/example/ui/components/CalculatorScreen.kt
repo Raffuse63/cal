@@ -2008,14 +2008,14 @@ fun UnitConverterDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.88f)
+                .wrapContentHeight()
                 .padding(4.dp)
                 .testTag("dialog_unit_converter"),
             shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = bg),
             border = BorderStroke(2.dp, cardBorder)
         ) {
-            Column(modifier = Modifier.fillMaxSize()) {
+            Column(modifier = Modifier.fillMaxWidth().wrapContentHeight()) {
                 // Header row
                 Row(
                     modifier = Modifier
