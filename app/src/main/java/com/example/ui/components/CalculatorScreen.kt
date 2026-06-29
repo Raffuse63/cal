@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.ui.CalculatorViewModel
 
@@ -59,6 +60,7 @@ fun CalculatorScreen(
     val showEquationSolver by viewModel.showEquationSolver.collectAsStateWithLifecycle()
     val showDevInfo by viewModel.showDevInfo.collectAsStateWithLifecycle()
     val showConstants by viewModel.showConstants.collectAsStateWithLifecycle()
+    val showUnitConverter by viewModel.showUnitConverter.collectAsStateWithLifecycle()
 
     // Stylings from CSS
     val pageBg = if (isDark) Color(0xFF0A0E1A) else Color(0xFFFFFFFF)
@@ -419,6 +421,10 @@ fun CalculatorScreen(
     if (showConstants) {
         ConstantsDialog(viewModel, isDark)
     }
+
+    if (showUnitConverter) {
+        UnitConverterDialog(viewModel, isDark)
+    }
 }
 
 // Subcomponent grids
@@ -607,7 +613,14 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
             SciBtn("M", bg = funcBg, textColor = Color.White, topLabel = "tab", alphaLabel = "bas", bottomLabel = "equ", modifier = Modifier.weight(10f)) { viewModel.pressModeMenu() }
             SciBtn("(", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("(")) { viewModel.pressParen() }
             SciBtn(")", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled(")")) { viewModel.pressKey(")") }
-            SciBtn("CNST", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f)) { viewModel.showConstants.value = true }
+            SciBtn("CNST", bg = buttonBg, textColor = buttonTextColor, topLabel = "CONV", modifier = Modifier.weight(10f)) {
+                if (viewModel.shift.value) {
+                    viewModel.shift.value = false
+                    viewModel.showUnitConverter.value = true
+                } else {
+                    viewModel.showConstants.value = true
+                }
+            }
         }
         // Row 2
         Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
@@ -1721,10 +1734,9 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                         .padding(horizontal = 8.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "No", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.width(28.dp), textAlign = TextAlign.Center)
-                    Text(text = "Constant", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.42f))
+                    Text(text = "Constant", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.45f))
                     Text(text = "Symbol", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.18f), textAlign = TextAlign.Center)
-                    Text(text = "Value", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.40f))
+                    Text(text = "Value", color = textCol.copy(alpha = 0.6f), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(0.37f))
                 }
 
                 Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
@@ -1768,18 +1780,11 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 Text(
-                                    text = constant.no,
-                                    color = textCol.copy(alpha = 0.6f),
-                                    fontSize = 11.sp,
-                                    modifier = Modifier.width(28.dp),
-                                    textAlign = TextAlign.Center
-                                )
-                                Text(
                                     text = constant.name,
                                     color = textCol,
                                     fontSize = 11.sp,
                                     fontWeight = FontWeight.Medium,
-                                    modifier = Modifier.weight(0.42f)
+                                    modifier = Modifier.weight(0.45f)
                                 )
                                 Text(
                                     text = constant.symbol,
@@ -1795,12 +1800,589 @@ fun ConstantsDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                     color = textCol.copy(alpha = 0.8f),
                                     fontSize = 10.sp,
                                     fontFamily = FontFamily.Monospace,
-                                    modifier = Modifier.weight(0.40f)
+                                    modifier = Modifier.weight(0.37f)
                                 )
                             }
                             Divider(color = cardBorder.copy(alpha = 0.15f), thickness = 0.5.dp)
                         }
                     }
+                }
+            }
+        }
+    }
+}
+
+enum class ConversionCategory(val displayName: String, val emoji: String) {
+    LENGTH("Length", "📏"),
+    MASS("Mass", "⚖️"),
+    VOLUME("Volume", "🧪"),
+    AREA("Area", "🗺️"),
+    TEMPERATURE("Temperature", "🌡️"),
+    PRESSURE("Pressure", "🎈"),
+    ENERGY("Energy", "⚡"),
+    POWER("Power", "🔌"),
+    TIME("Time", "⏱️"),
+    SPEED("Speed", "🚀"),
+    DATA("Data Storage", "💾")
+}
+
+data class ConversionUnit(val name: String, val symbol: String, val factorToBase: Double)
+
+val lengthUnits = listOf(
+    ConversionUnit("Meter", "m", 1.0),
+    ConversionUnit("Kilometer", "km", 1000.0),
+    ConversionUnit("Centimeter", "cm", 0.01),
+    ConversionUnit("Millimeter", "mm", 0.001),
+    ConversionUnit("Mile", "mi", 1609.344),
+    ConversionUnit("Yard", "yd", 0.9144),
+    ConversionUnit("Foot", "ft", 0.3048),
+    ConversionUnit("Inch", "in", 0.0254),
+    ConversionUnit("Nautical Mile", "n mile", 1852.0)
+)
+
+val massUnits = listOf(
+    ConversionUnit("Gram", "g", 1.0),
+    ConversionUnit("Kilogram", "kg", 1000.0),
+    ConversionUnit("Milligram", "mg", 0.001),
+    ConversionUnit("Pound", "lb", 453.59237),
+    ConversionUnit("Ounce", "oz", 28.349523125)
+)
+
+val volumeUnits = listOf(
+    ConversionUnit("Liter", "L", 1.0),
+    ConversionUnit("Milliliter", "mL", 0.001),
+    ConversionUnit("Cubic Meter", "m³", 1000.0),
+    ConversionUnit("Gallon (US)", "gal (US)", 3.785411784),
+    ConversionUnit("Gallon (UK)", "gal (UK)", 4.54609),
+    ConversionUnit("Quart (US)", "qt", 0.946352946),
+    ConversionUnit("Pint (US)", "pt (US)", 0.473176473),
+    ConversionUnit("Pint (UK)", "pt (UK)", 0.56826125),
+    ConversionUnit("Cup (US)", "cup", 0.236588236)
+)
+
+val areaUnits = listOf(
+    ConversionUnit("Square Meter", "m²", 1.0),
+    ConversionUnit("Square Kilometer", "km²", 1000000.0),
+    ConversionUnit("Square Centimeter", "cm²", 0.0001),
+    ConversionUnit("Square Mile", "mi²", 2589988.110336),
+    ConversionUnit("Acre", "acre", 4046.8564224),
+    ConversionUnit("Hectare", "ha", 10000.0)
+)
+
+val tempUnits = listOf(
+    ConversionUnit("Celsius", "°C", 1.0),
+    ConversionUnit("Fahrenheit", "°F", 1.0),
+    ConversionUnit("Kelvin", "K", 1.0)
+)
+
+val pressureUnits = listOf(
+    ConversionUnit("Pascal", "Pa", 1.0),
+    ConversionUnit("Kilopascal", "kPa", 1000.0),
+    ConversionUnit("Atmosphere", "atm", 101325.0),
+    ConversionUnit("mmHg", "mmHg", 133.322387415),
+    ConversionUnit("psi (lbf/in²)", "psi", 6894.757293),
+    ConversionUnit("kgf/cm²", "kgf/cm²", 98066.5)
+)
+
+val powerUnits = listOf(
+    ConversionUnit("Watt", "W", 1.0),
+    ConversionUnit("Kilowatt", "kW", 1000.0),
+    ConversionUnit("Horsepower", "hp", 745.699872)
+)
+
+val energyUnits = listOf(
+    ConversionUnit("Joule", "J", 1.0),
+    ConversionUnit("Calorie", "cal", 4.184),
+    ConversionUnit("kgf·m", "kgf·m", 9.80665)
+)
+
+val timeUnits = listOf(
+    ConversionUnit("Second", "s", 1.0),
+    ConversionUnit("Minute", "min", 60.0),
+    ConversionUnit("Hour", "h", 3600.0),
+    ConversionUnit("Day", "d", 86400.0),
+    ConversionUnit("Week", "wk", 604800.0),
+    ConversionUnit("Year", "yr", 31536000.0)
+)
+
+val speedUnits = listOf(
+    ConversionUnit("Meter/second", "m/s", 1.0),
+    ConversionUnit("Kilometer/hour", "km/h", 0.2777777777777778),
+    ConversionUnit("Mile/hour", "mph", 0.44704),
+    ConversionUnit("Knot", "kt", 0.514444)
+)
+
+val dataUnits = listOf(
+    ConversionUnit("Byte", "B", 1.0),
+    ConversionUnit("Kilobyte", "KB", 1024.0),
+    ConversionUnit("Megabyte", "MB", 1048576.0),
+    ConversionUnit("Gigabyte", "GB", 1073741824.0),
+    ConversionUnit("Terabyte", "TB", 1099511627776.0)
+)
+
+fun getUnitsForCategory(category: ConversionCategory): List<ConversionUnit> {
+    return when (category) {
+        ConversionCategory.LENGTH -> lengthUnits
+        ConversionCategory.MASS -> massUnits
+        ConversionCategory.VOLUME -> volumeUnits
+        ConversionCategory.AREA -> areaUnits
+        ConversionCategory.TEMPERATURE -> tempUnits
+        ConversionCategory.PRESSURE -> pressureUnits
+        ConversionCategory.ENERGY -> energyUnits
+        ConversionCategory.POWER -> powerUnits
+        ConversionCategory.TIME -> timeUnits
+        ConversionCategory.SPEED -> speedUnits
+        ConversionCategory.DATA -> dataUnits
+    }
+}
+
+fun formatDouble(value: Double): String {
+    if (!value.isFinite()) return "Error"
+    if (value == 0.0) return "0"
+    if (kotlin.math.abs(value) >= 1e7 || kotlin.math.abs(value) <= 1e-4) {
+        val rawScientific = String.format(java.util.Locale.US, "%.6e", value)
+        val parts = rawScientific.split('e', 'E')
+        if (parts.size == 2) {
+            val mantissa = parts[0].trimEnd('0').trimEnd('.')
+            val exponent = parts[1].toIntOrNull() ?: 0
+            return if (exponent != 0) "$mantissa×10^$exponent" else mantissa
+        }
+        return rawScientific
+    }
+    return String.format(java.util.Locale.US, "%.10f", value).trimEnd('0').trimEnd('.')
+}
+
+@Composable
+fun UnitConverterDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
+    val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
+    val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
+    val cardBorder = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+    val headerBg = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)
+    val accentBlue = Color(0xFF2563EB)
+
+    // Category states
+    var selectedCategory by remember { mutableStateOf(ConversionCategory.LENGTH) }
+    val currentUnits = remember(selectedCategory) { getUnitsForCategory(selectedCategory) }
+
+    var fromUnit by remember { mutableStateOf(lengthUnits[0]) }
+    var toUnit by remember { mutableStateOf(lengthUnits[1]) }
+
+    // Reset units when category changes
+    LaunchedEffect(selectedCategory) {
+        val units = getUnitsForCategory(selectedCategory)
+        fromUnit = units.firstOrNull() ?: lengthUnits[0]
+        toUnit = units.getOrNull(1) ?: fromUnit
+    }
+
+    var inputValueStr by remember { mutableStateOf("1") }
+    var expandedCategory by remember { mutableStateOf(false) }
+    var expandedFrom by remember { mutableStateOf(false) }
+    var expandedTo by remember { mutableStateOf(false) }
+
+    val convertedValue = remember(inputValueStr, fromUnit, toUnit, selectedCategory) {
+        val doubleVal = inputValueStr.toDoubleOrNull() ?: 0.0
+        if (selectedCategory == ConversionCategory.TEMPERATURE) {
+            val celsius = when (fromUnit.name) {
+                "Celsius" -> doubleVal
+                "Fahrenheit" -> (doubleVal - 32.0) * 5.0 / 9.0
+                "Kelvin" -> doubleVal - 273.15
+                else -> doubleVal
+            }
+            when (toUnit.name) {
+                "Celsius" -> celsius
+                "Fahrenheit" -> celsius * 9.0 / 5.0 + 32.0
+                "Kelvin" -> celsius + 273.15
+                else -> celsius
+            }
+        } else {
+            val valueInBase = doubleVal * fromUnit.factorToBase
+            valueInBase / toUnit.factorToBase
+        }
+    }
+
+    val resultValueStr = remember(convertedValue) {
+        formatDouble(convertedValue)
+    }
+
+    Dialog(onDismissRequest = { viewModel.showUnitConverter.value = false }) {
+        Card(
+            modifier = Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.88f)
+                .padding(4.dp)
+                .testTag("dialog_unit_converter"),
+            shape = RoundedCornerShape(12.dp),
+            colors = CardDefaults.cardColors(containerColor = bg),
+            border = BorderStroke(2.dp, cardBorder)
+        ) {
+            Column(modifier = Modifier.fillMaxSize()) {
+                // Header row
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(headerBg)
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Text(
+                        text = "Unit Converter (CONV)",
+                        color = textCol,
+                        fontSize = 16.sp,
+                        fontWeight = FontWeight.Bold
+                    )
+                    IconButton(
+                        onClick = { viewModel.showUnitConverter.value = false },
+                        modifier = Modifier.size(24.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Close,
+                            contentDescription = "Close dialog",
+                            tint = textCol.copy(alpha = 0.7f),
+                            modifier = Modifier.size(18.dp)
+                        )
+                    }
+                }
+
+                // CONTENT COLUMN
+                Column(
+                    modifier = Modifier
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                ) {
+                    // Category Selection (Dropdown)
+                    Text(
+                        text = "Category",
+                        color = textCol.copy(alpha = 0.7f),
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(bottom = 4.dp)
+                    )
+
+                    Box(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { expandedCategory = true },
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
+                                contentColor = textCol
+                            ),
+                            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFCBD5E1))
+                        ) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Text(selectedCategory.emoji + " ", fontSize = 16.sp)
+                                    Text(
+                                        text = selectedCategory.displayName,
+                                        fontSize = 14.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = textCol
+                                    )
+                                }
+                                Icon(
+                                    imageVector = Icons.Default.ArrowDropDown,
+                                    contentDescription = "Select category dropdown",
+                                    modifier = Modifier.size(20.dp),
+                                    tint = textCol
+                                )
+                            }
+                        }
+                        DropdownMenu(
+                            expanded = expandedCategory,
+                            onDismissRequest = { expandedCategory = false },
+                            modifier = Modifier
+                                .width(220.dp)
+                                .background(bg)
+                        ) {
+                            ConversionCategory.values().forEach { cat ->
+                                DropdownMenuItem(
+                                    text = {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Text(cat.emoji + " ", fontSize = 16.sp)
+                                            Spacer(modifier = Modifier.width(8.dp))
+                                            Text(cat.displayName, color = textCol, fontSize = 14.sp)
+                                        }
+                                    },
+                                    onClick = {
+                                        selectedCategory = cat
+                                        expandedCategory = false
+                                    }
+                                )
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(12.dp))
+
+                        // Input Value Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9)),
+                            border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                        ) {
+                            Column(modifier = Modifier.padding(12.dp)) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = "From (${fromUnit.symbol})",
+                                        color = textCol.copy(alpha = 0.7f),
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    // Paste Ans helper
+                                    Text(
+                                        text = "Paste Ans",
+                                        color = accentBlue,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier
+                                            .clickable {
+                                                val ansVal = viewModel.getAnsValue()
+                                                inputValueStr = if (ansVal.isFinite()) {
+                                                    if (ansVal % 1.0 == 0.0) ansVal.toLong().toString() else ansVal.toString()
+                                                } else {
+                                                    "1"
+                                                }
+                                            }
+                                            .padding(horizontal = 4.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                OutlinedTextField(
+                                    value = inputValueStr,
+                                    onValueChange = { inputValueStr = it },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .testTag("unit_conv_input"),
+                                    textStyle = androidx.compose.ui.text.TextStyle(
+                                        fontFamily = FontFamily.Monospace,
+                                        fontSize = 16.sp,
+                                        color = textCol
+                                    ),
+                                    colors = OutlinedTextFieldDefaults.colors(
+                                        focusedBorderColor = accentBlue,
+                                        unfocusedBorderColor = if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                    ),
+                                    shape = RoundedCornerShape(8.dp),
+                                    singleLine = true
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(12.dp))
+
+                        // Unit Selection (From & To dropdown selectors)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // From unit box
+                            Box(modifier = Modifier.weight(1f)) {
+                                Button(
+                                    onClick = { expandedFrom = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
+                                        contentColor = textCol
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFCBD5E1))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${fromUnit.name} (${fromUnit.symbol})",
+                                            fontSize = 12.sp,
+                                            maxLines = 1
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Select from unit",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = expandedFrom,
+                                    onDismissRequest = { expandedFrom = false },
+                                    modifier = Modifier.background(bg)
+                                ) {
+                                    currentUnits.forEach { u ->
+                                        DropdownMenuItem(
+                                            text = { Text("${u.name} (${u.symbol})", color = textCol, fontSize = 13.sp) },
+                                            onClick = {
+                                                fromUnit = u
+                                                expandedFrom = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+
+                            // Swap Button
+                            IconButton(
+                                onClick = {
+                                    val temp = fromUnit
+                                    fromUnit = toUnit
+                                    toUnit = temp
+                                },
+                                modifier = Modifier
+                                    .size(36.dp)
+                                    .background(if (isDark) Color(0xFF1E293B) else Color(0xFFF1F5F9), CircleShape)
+                                    .border(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1), CircleShape)
+                            ) {
+                                Text(
+                                    text = "⇄",
+                                    color = accentBlue,
+                                    fontSize = 18.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+
+                            // To unit box
+                            Box(modifier = Modifier.weight(1f)) {
+                                Button(
+                                    onClick = { expandedTo = true },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.buttonColors(
+                                        containerColor = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0),
+                                        contentColor = textCol
+                                    ),
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                                    shape = RoundedCornerShape(8.dp),
+                                    border = BorderStroke(1.dp, if (isDark) Color(0xFF475569) else Color(0xFFCBD5E1))
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        Text(
+                                            text = "${toUnit.name} (${toUnit.symbol})",
+                                            fontSize = 12.sp,
+                                            maxLines = 1
+                                        )
+                                        Icon(
+                                            imageVector = Icons.Default.ArrowDropDown,
+                                            contentDescription = "Select to unit",
+                                            modifier = Modifier.size(16.dp)
+                                        )
+                                    }
+                                }
+                                DropdownMenu(
+                                    expanded = expandedTo,
+                                    onDismissRequest = { expandedTo = false },
+                                    modifier = Modifier.background(bg)
+                                ) {
+                                    currentUnits.forEach { u ->
+                                        DropdownMenuItem(
+                                            text = { Text("${u.name} (${u.symbol})", color = textCol, fontSize = 13.sp) },
+                                            onClick = {
+                                                toUnit = u
+                                                expandedTo = false
+                                            }
+                                        )
+                                    }
+                                }
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Converted Result Display Card
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = if (isDark) Color(0xFF070B14) else Color(0xFFF8FAFC)),
+                            border = BorderStroke(2.dp, accentBlue.copy(alpha = 0.5f))
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(14.dp),
+                                horizontalAlignment = Alignment.CenterHorizontally
+                            ) {
+                                Text(
+                                    text = "Converted Value",
+                                    color = textCol.copy(alpha = 0.6f),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+
+                                Spacer(modifier = Modifier.height(6.dp))
+
+                                SelectionContainer {
+                                    Text(
+                                        text = resultValueStr,
+                                        color = textCol,
+                                        fontSize = 22.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        fontFamily = FontFamily.Monospace,
+                                        textAlign = TextAlign.Center,
+                                        modifier = Modifier.fillMaxWidth()
+                                    )
+                                }
+
+                                Spacer(modifier = Modifier.height(4.dp))
+
+                                Text(
+                                    text = "${toUnit.name} (${toUnit.symbol})",
+                                    color = accentBlue,
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        // Action Button
+                        Button(
+                            onClick = {
+                                val mathExprCompatible = resultValueStr.replace("×10^", "*10^")
+                                viewModel.insertValueToExpression(mathExprCompatible)
+                                viewModel.showUnitConverter.value = false
+                            },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(48.dp)
+                                .testTag("btn_unit_conv_insert"),
+                            colors = ButtonDefaults.buttonColors(containerColor = accentBlue),
+                            shape = RoundedCornerShape(8.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Check,
+                                    contentDescription = "Insert",
+                                    tint = Color.White,
+                                    modifier = Modifier.size(18.dp)
+                                )
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(
+                                    text = "Insert into Calculator",
+                                    color = Color.White,
+                                    fontSize = 14.sp,
+                                    fontWeight = FontWeight.Bold
+                                )
+                            }
+                        }
                 }
             }
         }

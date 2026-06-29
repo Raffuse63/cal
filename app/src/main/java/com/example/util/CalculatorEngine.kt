@@ -143,14 +143,29 @@ class CalculatorEngine(
 
     fun formatResult(num: Double): String {
         if (!num.isFinite()) return "Math ERROR"
-        if (num % 1 == 0.0) return num.toLong().toString()
-        if (abs(num - num.roundToLong()) < 1e-12) return num.roundToLong().toString()
+        if (abs(num) < 10000) {
+            if (num % 1 == 0.0) return num.toLong().toString()
+            val rounded = num.roundToLong()
+            if (rounded != 0L && abs(num - rounded) < 1e-12) return rounded.toString()
+        }
         val fixed = String.format("%.10f", num).trimEnd('0').trimEnd('.')
         if (abs(num) < 10000 && abs(num) > 0.0001) {
             return fixed
         } else {
-            // Normal scientific notation format without extra signs
-            return String.format("%.6e", num).replace("e+0", "e").replace("e-0", "e-")
+            val rawScientific = String.format(java.util.Locale.US, "%.10e", num)
+            val parts = rawScientific.split('e', 'E')
+            return if (parts.size == 2) {
+                val mantissa = parts[0].trimEnd('0').trimEnd('.')
+                val expStr = parts[1]
+                val exponent = expStr.toIntOrNull() ?: 0
+                if (exponent != 0) {
+                    "$mantissa×10^$exponent"
+                } else {
+                    mantissa
+                }
+            } else {
+                rawScientific
+            }
         }
     }
 
@@ -213,9 +228,37 @@ class CalculatorEngine(
     }
 
     fun evaluate(expr: String): Double {
-        var preprocessed = expr
-            .replace("Ans", ans.toString())
-            .replace("π", Math.PI.toString())
+        val superscriptRegex = "([⁻⁺⁰¹²³⁴⁵⁶⁷⁸⁹]+)".toRegex()
+        var preprocessed = expr.replace("Ans", ans.toString()).replace("π", Math.PI.toString())
+        
+        preprocessed = superscriptRegex.replace(preprocessed) { matchResult ->
+            val superscriptStr = matchResult.value
+            val translated = superscriptStr.map { ch ->
+                when (ch) {
+                    '⁰' -> '0'
+                    '¹' -> '1'
+                    '²' -> '2'
+                    '³' -> '3'
+                    '⁴' -> '4'
+                    '⁵' -> '5'
+                    '⁶' -> '6'
+                    '⁷' -> '7'
+                    '⁸' -> '8'
+                    '⁹' -> '9'
+                    '⁺' -> '+'
+                    '⁻' -> '-'
+                    else -> ch
+                }
+            }.joinToString("")
+            "^($translated)"
+        }
+
+        // Initial Unicode-aware implicit multiplication pass to ensure scientific constants have correct word boundaries
+        if (calcBase != 16) {
+            preprocessed = preprocessed.replace("(\\d|\\)|π)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
+        }
 
         if (calcBase != 16) {
             preprocessed = preprocessed.replace("\\be\\b".toRegex(), Math.E.toString())
@@ -312,8 +355,9 @@ class CalculatorEngine(
         }
 
         // Implicit multiplications: e.g. "2(3)" -> "2*(3)", "2tan(30)" -> "2*tan(30)", "πsin(x)" -> "π*sin(x)", ")(" -> ")*("
-        preprocessed = preprocessed.replace("(\\d|\\)|π|e)(?=[a-zA-Z√∛\\(])".toRegex(), "$1*")
-        preprocessed = preprocessed.replace("\\)(?=\\d|π|e)".toRegex(), ")*")
+        preprocessed = preprocessed.replace("(\\d|\\)|π)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
+        preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
+        preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
         
         return Parser(preprocessed, this).parse()
     }

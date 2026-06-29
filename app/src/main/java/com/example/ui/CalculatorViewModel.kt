@@ -50,6 +50,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     val showEquationSolver = MutableStateFlow(false)
     val showDevInfo = MutableStateFlow(false)
     val showConstants = MutableStateFlow(false)
+    val showUnitConverter = MutableStateFlow(false)
 
     // Table view state
     val tableFx = MutableStateFlow("x^2")
@@ -941,5 +942,19 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         } catch (e: Exception) {
             eqnResult.value = "Error: " + (e.message ?: "Invalid parameters")
         }
+    }
+
+    fun getAnsValue(): Double {
+        return engine.ans
+    }
+
+    fun insertValueToExpression(value: String) {
+        if (justCalculated.value) {
+            expr.value = value
+            justCalculated.value = false
+        } else {
+            expr.value += value
+        }
+        runLiveCalculation()
     }
 }
