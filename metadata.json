@@ -1,5 +1,5 @@
 {
-  "name": "Pro Scientific Calculator",
+  "name": "Scientific",
   "description": "A modern, highly functional scientific calculator with dual modes, equation solver, table f(x) mode, and developer info.",
   "requestFramePermissions": [],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]

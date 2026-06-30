@@ -40,6 +40,9 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.AnnotatedString
 import com.example.ui.CalculatorViewModel
+import coil.compose.SubcomposeAsyncImage
+import coil.request.ImageRequest
+import androidx.compose.ui.layout.ContentScale
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -1552,16 +1555,39 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(12.dp)
                 ) {
-                    // Beautiful custom "H" logo
-                    Box(
+                    // Dynamic Profile Image loaded via Coil with custom "H" circle fallback
+                    SubcomposeAsyncImage(
+                        model = ImageRequest.Builder(context)
+                            .data("https://pbs.twimg.com/profile_images/1549038045931769862/NJjQA0_i_400x400.jpg")
+                            .crossfade(true)
+                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                            .build(),
+                        contentDescription = "Developer Profile",
+                        contentScale = ContentScale.Crop,
                         modifier = Modifier
                             .size(70.dp)
-                            .clip(CircleShape)
-                            .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
-                    }
+                            .clip(CircleShape),
+                        loading = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
+                            }
+                        },
+                        error = {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
+                            }
+                        }
+                    )
 
                     Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                     Text(text = "Calculator Developer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp)

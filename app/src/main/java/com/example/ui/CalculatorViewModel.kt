@@ -273,6 +273,13 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         runLiveCalculation()
     }
 
+    private fun isUnaryMinus(expression: String, idx: Int): Boolean {
+        if (idx < 0 || idx >= expression.length || expression[idx] != '-') return false
+        if (idx == 0) return true
+        val prev = expression[idx - 1]
+        return prev in listOf('+', '-', '×', '÷', '*', '/', '^', '(', 'E', 'e')
+    }
+
     fun pressNeg() {
         if (justCalculated.value) {
             expr.value = ""
@@ -283,13 +290,92 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
         val currentExpr = expr.value
         val pos = cursorPosition.value ?: currentExpr.length
-        if (pos >= 3 && currentExpr.substring(pos - 3, pos) == "(-)") {
-            val updated = currentExpr.substring(0, pos - 3) + currentExpr.substring(pos)
-            expr.value = updated
-            cursorPosition.value = if (cursorPosition.value != null) pos - 3 else null
+
+        if (pos > 0) {
+            var start = -1
+            // Check if preceding is "Ans"
+            if (pos >= 3 && currentExpr.substring(pos - 3, pos) == "Ans") {
+                start = pos - 3
+            } else {
+                // Check if preceding character is digit or '.'
+                val lastChar = currentExpr[pos - 1]
+                if (lastChar.isDigit() || lastChar == '.') {
+                    var i = pos - 1
+                    while (i >= 0 && (currentExpr[i].isDigit() || currentExpr[i] == '.')) {
+                        i--
+                    }
+                    start = i + 1
+                }
+            }
+
+            if (start != -1) {
+                // We found a number or variable start at 'start'
+                if (start > 0 && currentExpr[start - 1] == '+') {
+                    // Toggle '+' to '-'
+                    val updated = currentExpr.substring(0, start - 1) + "-" + currentExpr.substring(start)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = pos.coerceIn(0, updated.length)
+                    }
+                } else if (start > 0 && currentExpr[start - 1] == '-' && isUnaryMinus(currentExpr, start - 1)) {
+                    // It already has a unary minus, remove it
+                    val updated = currentExpr.substring(0, start - 1) + currentExpr.substring(start)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = (pos - 1).coerceIn(0, updated.length)
+                    }
+                } else if (start > 0 && currentExpr[start - 1] == '-') {
+                    // It has a binary minus, toggle to '+'
+                    val updated = currentExpr.substring(0, start - 1) + "+" + currentExpr.substring(start)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = pos.coerceIn(0, updated.length)
+                    }
+                } else {
+                    // It does not have any adjacent sign, insert '-'
+                    val updated = currentExpr.substring(0, start) + "-" + currentExpr.substring(start)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = (pos + 1).coerceIn(0, updated.length)
+                    }
+                }
+            } else {
+                // Fallback: no number/variable found preceding the cursor
+                if (pos > 0 && currentExpr[pos - 1] == '+') {
+                    val updated = currentExpr.substring(0, pos - 1) + "-" + currentExpr.substring(pos)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = pos.coerceIn(0, updated.length)
+                    }
+                } else if (pos > 0 && currentExpr[pos - 1] == '-' && isUnaryMinus(currentExpr, pos - 1)) {
+                    val updated = currentExpr.substring(0, pos - 1) + currentExpr.substring(pos)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = (pos - 1).coerceIn(0, updated.length)
+                    }
+                } else if (pos > 0 && currentExpr[pos - 1] == '-') {
+                    val updated = currentExpr.substring(0, pos - 1) + "+" + currentExpr.substring(pos)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = pos.coerceIn(0, updated.length)
+                    }
+                } else {
+                    val updated = currentExpr.substring(0, pos) + "-" + currentExpr.substring(pos)
+                    expr.value = updated
+                    if (cursorPosition.value != null) {
+                        cursorPosition.value = (pos + 1).coerceIn(0, updated.length)
+                    }
+                }
+            }
         } else {
-            insertTextAtCursor("(-)")
+            // pos == 0, insert at the beginning
+            val updated = "-" + currentExpr
+            expr.value = updated
+            if (cursorPosition.value != null) {
+                cursorPosition.value = 1
+            }
         }
+
         resetModifiers()
         runLiveCalculation()
     }
