@@ -30,6 +30,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     val isDarkTheme = MutableStateFlow(false)
     val basicMode = MutableStateFlow(true)
     val expr = MutableStateFlow("")
+    val cursorPosition = MutableStateFlow<Int?>(null)
     val result = MutableStateFlow("Welcome to Hridoy's World")
     val isWelcome = MutableStateFlow(true)
 
@@ -95,9 +96,59 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         basicMode.value = !basicMode.value
         if (basicMode.value) {
             expr.value = ""
+            cursorPosition.value = null
             result.value = "0"
             calcBase.value = 10
             engine.calcBase = 10
+        }
+    }
+
+    fun moveCursorLeft() {
+        val pos = cursorPosition.value ?: return
+        if (pos > 0) {
+            cursorPosition.value = pos - 1
+        }
+    }
+
+    fun moveCursorRight() {
+        val pos = cursorPosition.value ?: return
+        if (pos < expr.value.length) {
+            cursorPosition.value = pos + 1
+        }
+    }
+
+    fun toggleCursor() {
+        if (cursorPosition.value == null) {
+            cursorPosition.value = expr.value.length
+        } else {
+            cursorPosition.value = null
+        }
+    }
+
+    fun insertTextAtCursor(text: String) {
+        val current = expr.value
+        val pos = cursorPosition.value
+        if (pos != null && pos in 0..current.length) {
+            val updated = current.substring(0, pos) + text + current.substring(pos)
+            expr.value = updated
+            cursorPosition.value = pos + text.length
+        } else {
+            expr.value = current + text
+            cursorPosition.value = null
+        }
+    }
+
+    fun deleteTextAtCursor() {
+        val current = expr.value
+        if (current.isEmpty()) return
+        val pos = cursorPosition.value
+        if (pos != null && pos > 0 && pos <= current.length) {
+            val updated = current.substring(0, pos - 1) + current.substring(pos)
+            expr.value = updated
+            cursorPosition.value = pos - 1
+        } else if (pos == null) {
+            expr.value = current.dropLast(1)
+            cursorPosition.value = null
         }
     }
 
@@ -144,16 +195,18 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
         if (justCalculated.value) {
             expr.value = "Ans×("
+            cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             result.value = "0"
             justCalculated.value = false
             resetModifiers()
             return
         }
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-            expr.value += "×"
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+            insertTextAtCursor("×")
         }
-        expr.value += "("
+        insertTextAtCursor("(")
         resetModifiers()
         runLiveCalculation()
     }
@@ -184,7 +237,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         if (shift.value && value == "%") {
-            expr.value += ","
+            insertTextAtCursor(",")
             resetModifiers()
             runLiveCalculation()
             return
@@ -193,27 +246,29 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (justCalculated.value) {
             if (value.any { it.isDigit() } || value == "(" || value == ".") {
                 expr.value = ""
+                cursorPosition.value = if (cursorPosition.value != null) 0 else null
                 result.value = "0"
             }
             justCalculated.value = false
         }
 
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty()) {
-            val lastChar = currentExpr.last()
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length) {
+            val charBefore = currentExpr[pos - 1]
             val requiresMul = if (value == "(") {
-                isImplicitMulRequired(lastChar, currentExpr)
+                isImplicitMulRequired(charBefore, currentExpr)
             } else if (value.any { it.isDigit() }) {
-                isImplicitMulRequired(lastChar, currentExpr) && !lastChar.isDigit() && lastChar != '.'
+                isImplicitMulRequired(charBefore, currentExpr) && !charBefore.isDigit() && charBefore != '.'
             } else {
                 false
             }
             if (requiresMul) {
-                expr.value += "×"
+                insertTextAtCursor("×")
             }
         }
 
-        expr.value += value
+        insertTextAtCursor(value)
         resetModifiers()
         runLiveCalculation()
     }
@@ -221,30 +276,19 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun pressNeg() {
         if (justCalculated.value) {
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             result.value = "0"
             justCalculated.value = false
         }
 
         val currentExpr = expr.value
-        if (currentExpr.endsWith("(-)")) {
-            expr.value = currentExpr.dropLast(3)
-        } else if (currentExpr.isEmpty() || currentExpr.last() in listOf('+', '-', '×', '÷', '(')) {
-            expr.value += "(-)"
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (pos >= 3 && currentExpr.substring(pos - 3, pos) == "(-)") {
+            val updated = currentExpr.substring(0, pos - 3) + currentExpr.substring(pos)
+            expr.value = updated
+            cursorPosition.value = if (cursorPosition.value != null) pos - 3 else null
         } else {
-            // Toggle unary negative for current numerical string
-            val digitRegex = "(\\d+\\.?\\d*)$".toRegex()
-            val match = digitRegex.find(currentExpr)
-            if (match != null) {
-                val num = match.value
-                val startIdx = currentExpr.lastIndexOf(num)
-                if (startIdx >= 3 && currentExpr.substring(startIdx - 3, startIdx) == "(-)") {
-                    expr.value = currentExpr.substring(0, startIdx - 3) + num
-                } else {
-                    expr.value = currentExpr.substring(0, startIdx) + "(-)" + num
-                }
-            } else {
-                expr.value += "(-)"
-            }
+            insertTextAtCursor("(-)")
         }
         resetModifiers()
         runLiveCalculation()
@@ -258,27 +302,32 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
         if (justCalculated.value) {
             expr.value = engine.formatResult(engine.ans)
+            cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             result.value = engine.formatResult(engine.ans)
             justCalculated.value = false
         }
 
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty()) {
-            val lastChar = currentExpr.last()
-            val operators = listOf('+', '-', '×', '÷')
+        val pos = cursorPosition.value ?: currentExpr.length
+        val operators = listOf('+', '-', '×', '÷')
 
-            if ((lastChar == '×' || lastChar == '÷') && op == "-") {
-                expr.value += op
+        if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length) {
+            val charBefore = currentExpr[pos - 1]
+
+            if ((charBefore == '×' || charBefore == '÷') && op == "-") {
+                insertTextAtCursor(op)
                 resetModifiers()
                 runLiveCalculation()
                 return
             }
 
-            if (lastChar in operators) {
-                expr.value = currentExpr.dropLast(1)
+            if (charBefore in operators) {
+                val updated = currentExpr.substring(0, pos - 1) + currentExpr.substring(pos)
+                expr.value = updated
+                cursorPosition.value = if (cursorPosition.value != null) pos - 1 else null
             }
 
-            if (lastChar == '(' && op != "-") {
+            if (charBefore == '(' && op != "-") {
                 resetModifiers()
                 return
             }
@@ -289,7 +338,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             }
         }
 
-        expr.value += op
+        insertTextAtCursor(op)
         resetModifiers()
         runLiveCalculation()
     }
@@ -319,21 +368,23 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
         if (justCalculated.value) {
             expr.value = "Ans"
+            cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             result.value = "Ans"
             justCalculated.value = false
         }
 
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-            expr.value += "×"
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+            insertTextAtCursor("×")
         }
 
         if (shift.value && c == "π") {
-            expr.value += "e"
+            insertTextAtCursor("e")
         } else if (alpha.value && c == "π") {
-            expr.value += variables.value["D"].toString()
+            insertTextAtCursor(variables.value["D"].toString())
         } else {
-            expr.value += if (c == "π") "π" else c
+            insertTextAtCursor(if (c == "π") "π" else c)
         }
         resetModifiers()
         runLiveCalculation()
@@ -343,22 +394,25 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (isWelcome.value) {
             isWelcome.value = false
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             result.value = "0"
         }
         
         if (justCalculated.value) {
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             result.value = "0"
             justCalculated.value = false
         }
         
         val currentExpr = expr.value
-        if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-            expr.value += "×"
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+            insertTextAtCursor("×")
         }
         
         val symbolToInsert = if (symbol == "e") "𝑒" else symbol
-        expr.value += symbolToInsert
+        insertTextAtCursor(symbolToInsert)
         runLiveCalculation()
     }
 
@@ -366,13 +420,15 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (shift.value && alpha.value && fn == "log") {
             if (justCalculated.value) {
                 expr.value = ""
+                cursorPosition.value = if (cursorPosition.value != null) 0 else null
                 justCalculated.value = false
             }
             val currentExpr = expr.value
-            if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-                expr.value += "×"
+            val pos = cursorPosition.value ?: currentExpr.length
+            if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+                insertTextAtCursor("×")
             }
-            expr.value += "logbase("
+            insertTextAtCursor("logbase(")
             resetModifiers()
             runLiveCalculation()
             return
@@ -415,13 +471,15 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             val varName = alphaVars[fn]!!
             if (justCalculated.value) {
                 expr.value = ""
+                cursorPosition.value = if (cursorPosition.value != null) 0 else null
                 justCalculated.value = false
             }
             val currentExpr = expr.value
-            if (currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-                expr.value += "×"
+            val pos = cursorPosition.value ?: currentExpr.length
+            if (currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+                insertTextAtCursor("×")
             }
-            expr.value += variables.value[varName].toString()
+            insertTextAtCursor(variables.value[varName].toString())
             resetModifiers()
             runLiveCalculation()
             return
@@ -430,21 +488,23 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         val noImplicitMul = listOf("pow", "pow2", "nPr", "fact")
         if (justCalculated.value && !noImplicitMul.contains(fn)) {
             expr.value = engine.formatResult(engine.ans) + "×"
+            cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             result.value = "0"
             justCalculated.value = false
         }
 
         val currentExpr = expr.value
-        if (!noImplicitMul.contains(fn) && currentExpr.isNotEmpty() && isImplicitMulRequired(currentExpr.last(), currentExpr)) {
-            expr.value += "×"
+        val pos = cursorPosition.value ?: currentExpr.length
+        if (!noImplicitMul.contains(fn) && currentExpr.isNotEmpty() && pos > 0 && pos <= currentExpr.length && isImplicitMulRequired(currentExpr[pos - 1], currentExpr)) {
+            insertTextAtCursor("×")
         }
 
-        when {
+        val funcToInsert = when {
             shift.value && alpha.value -> {
                 val shiftAlphaFuncs = mapOf(
                     "sin" to "acsc(", "cos" to "asec(", "tan" to "acot("
                 )
-                expr.value += shiftAlphaFuncs[fn] ?: "$fn("
+                shiftAlphaFuncs[fn] ?: "$fn("
             }
             shift.value -> {
                 val shiftFuncs = mapOf(
@@ -452,13 +512,13 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                     "log" to "10^", "ln" to "e^", "pow2" to "^3", "pow" to "^",
                     "sqrt" to "cbrt(", "fact" to "^(-1)", "nPr" to "C", "pol" to "Rec(", "abs" to "Rnd("
                 )
-                expr.value += shiftFuncs[fn] ?: "$fn("
+                shiftFuncs[fn] ?: "$fn("
             }
             alpha.value -> {
                 val alphaFuncs = mapOf(
                     "sin" to "csc(", "cos" to "sec(", "tan" to "cot(", "fact" to "fact("
                 )
-                expr.value += alphaFuncs[fn] ?: "$fn("
+                alphaFuncs[fn] ?: "$fn("
             }
             else -> {
                 val normalFuncs = mapOf(
@@ -466,9 +526,10 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                     "log" to "log(", "ln" to "ln(", "pow2" to "^2", "pow" to "^",
                     "sqrt" to "√(", "fact" to "!", "nPr" to "P", "pol" to "Pol(", "abs" to "abs("
                 )
-                expr.value += normalFuncs[fn] ?: "$fn("
+                normalFuncs[fn] ?: "$fn("
             }
         }
+        insertTextAtCursor(funcToInsert)
 
         resetModifiers()
         runLiveCalculation()
@@ -494,9 +555,10 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun pressExp() {
         if (justCalculated.value) {
             expr.value = "Ans"
+            cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             justCalculated.value = false
         }
-        expr.value += "E"
+        insertTextAtCursor("E")
         resetModifiers()
         runLiveCalculation()
     }
@@ -504,10 +566,20 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun pressEng() {
         try {
             val valDouble = engine.evaluate(if (expr.value.isEmpty()) result.value else expr.value)
-            // format into exponential engineering notation
-            val exponent = (floor(log10(abs(valDouble)) / 3) * 3).toInt()
-            val mantissa = valDouble / 10.0.pow(exponent)
-            result.value = "${engine.formatResult(mantissa)}×10^$exponent"
+            val rawScientific = String.format(java.util.Locale.US, "%.12e", valDouble)
+            val parts = rawScientific.split('e', 'E')
+            if (parts.size == 2) {
+                val mDouble = parts[0].toDoubleOrNull() ?: 0.0
+                val exponent = parts[1].toIntOrNull() ?: 0
+                val mantissa = engine.formatResult(mDouble)
+                if (exponent != 0) {
+                    result.value = "$mantissa×10^$exponent"
+                } else {
+                    result.value = mantissa
+                }
+            } else {
+                result.value = engine.formatResult(valDouble)
+            }
         } catch (e: Exception) {
             result.value = "Math ERROR"
         }
@@ -536,9 +608,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (justCalculated.value) {
             justCalculated.value = false
         }
-        if (expr.value.isNotEmpty()) {
-            expr.value = expr.value.dropLast(1)
-        }
+        deleteTextAtCursor()
         resetModifiers()
         runLiveCalculation()
     }
@@ -546,9 +616,10 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun pressAns() {
         if (justCalculated.value) {
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             justCalculated.value = false
         }
-        expr.value += "Ans"
+        insertTextAtCursor("Ans")
         resetModifiers()
         runLiveCalculation()
     }
@@ -559,6 +630,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             viewModelScope.launch {
                 kotlinx.coroutines.delay(1000)
                 expr.value = ""
+                cursorPosition.value = null
                 result.value = "0"
                 engine.ans = 0.0
                 val clearedVars = variables.value.toMutableMap()
@@ -576,6 +648,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         expr.value = ""
+        cursorPosition.value = null
         result.value = "0"
         justCalculated.value = false
         waitingForSto.value = false
@@ -584,15 +657,14 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
 
     fun pressClear() {
         expr.value = ""
+        cursorPosition.value = null
         result.value = "0"
         justCalculated.value = false
         resetModifiers()
     }
 
     fun pressBack() {
-        if (expr.value.isNotEmpty()) {
-            expr.value = expr.value.dropLast(1)
-        }
+        deleteTextAtCursor()
         runLiveCalculation()
     }
 
@@ -615,7 +687,12 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             return
         }
 
-        val displayExpr = expr.value
+        var displayExpr = expr.value.trim()
+        while (displayExpr.isNotEmpty() && displayExpr.last() in listOf('+', '-', '×', '÷', '*', '/')) {
+            displayExpr = displayExpr.dropLast(1).trim()
+        }
+        expr.value = displayExpr
+
         try {
             if (displayExpr.contains("=")) {
                 val parts = displayExpr.split("=")
@@ -663,6 +740,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
         if (justCalculated.value) {
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             justCalculated.value = false
         }
 
@@ -672,7 +750,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         if (calcBase.value == 16 && d.uppercase() !in listOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9", "A", "B", "C", "D", "E", "F")) return
         if (calcBase.value == 10 && d !in listOf("0", "1", "2", "3", "4", "5", "6", "7", "8", "9")) return
 
-        expr.value += d
+        insertTextAtCursor(d)
         runLiveCalculation()
     }
 
@@ -683,6 +761,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
         if (justCalculated.value) {
             expr.value = ""
+            cursorPosition.value = if (cursorPosition.value != null) 0 else null
             justCalculated.value = false
         }
         val prefix = when (type) {
@@ -691,8 +770,16 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
             16 -> "0x"
             else -> ""
         }
-        if (prefix.isNotEmpty() && !expr.value.endsWith("0b") && !expr.value.endsWith("0o") && !expr.value.endsWith("0x")) {
-            expr.value += prefix
+        val current = expr.value
+        val pos = cursorPosition.value ?: current.length
+        if (prefix.isNotEmpty()) {
+            val endsWithPrefix = if (pos >= 2) {
+                val sub = current.substring(pos - 2, pos)
+                sub == "0b" || sub == "0o" || sub == "0x"
+            } else false
+            if (!endsWithPrefix) {
+                insertTextAtCursor(prefix)
+            }
         }
     }
 
@@ -729,8 +816,8 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                     result.value = if (isEqual) "True" else "False"
                 }
             } else {
-                if (calcTerm.last() in listOf('+', '-', '×', '÷', '*', '/')) {
-                    calcTerm = calcTerm.dropLast(1)
+                while (calcTerm.isNotEmpty() && calcTerm.last() in listOf('+', '-', '×', '÷', '*', '/')) {
+                    calcTerm = calcTerm.dropLast(1).trim()
                 }
                 if (calcTerm.isNotEmpty() && !calcTerm.endsWith("(") && !calcTerm.endsWith("E")) {
                     val liveResult = engine.evaluate(calcTerm)
@@ -951,9 +1038,10 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
     fun insertValueToExpression(value: String) {
         if (justCalculated.value) {
             expr.value = value
+            cursorPosition.value = if (cursorPosition.value != null) value.length else null
             justCalculated.value = false
         } else {
-            expr.value += value
+            insertTextAtCursor(value)
         }
         runLiveCalculation()
     }

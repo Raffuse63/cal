@@ -143,29 +143,28 @@ class CalculatorEngine(
 
     fun formatResult(num: Double): String {
         if (!num.isFinite()) return "Math ERROR"
-        if (abs(num) < 10000) {
+        
+        // Handle integer values or near-integer values first
+        val absNum = abs(num)
+        if (absNum < 1e15) {
             if (num % 1 == 0.0) return num.toLong().toString()
             val rounded = num.roundToLong()
             if (rounded != 0L && abs(num - rounded) < 1e-12) return rounded.toString()
         }
-        val fixed = String.format("%.10f", num).trimEnd('0').trimEnd('.')
-        if (abs(num) < 10000 && abs(num) > 0.0001) {
-            return fixed
+        
+        // Format to plain decimal string without any scientific notation
+        val bd = try {
+            java.math.BigDecimal(num.toString())
+        } catch (e: Exception) {
+            java.math.BigDecimal.valueOf(num)
+        }
+        
+        // Strip trailing zeroes and return plain string
+        val plain = bd.stripTrailingZeros().toPlainString()
+        return if (plain.contains(".") && plain.endsWith(".0")) {
+            plain.substring(0, plain.length - 2)
         } else {
-            val rawScientific = String.format(java.util.Locale.US, "%.10e", num)
-            val parts = rawScientific.split('e', 'E')
-            return if (parts.size == 2) {
-                val mantissa = parts[0].trimEnd('0').trimEnd('.')
-                val expStr = parts[1]
-                val exponent = expStr.toIntOrNull() ?: 0
-                if (exponent != 0) {
-                    "$mantissa×10^$exponent"
-                } else {
-                    mantissa
-                }
-            } else {
-                rawScientific
-            }
+            plain
         }
     }
 

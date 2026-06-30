@@ -31,6 +31,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.AnnotatedString
 import com.example.ui.CalculatorViewModel
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -43,9 +51,15 @@ fun CalculatorScreen(
     val isDark by viewModel.isDarkTheme.collectAsStateWithLifecycle()
     val basicMode by viewModel.basicMode.collectAsStateWithLifecycle()
     val expr by viewModel.expr.collectAsStateWithLifecycle()
+    val cursorPosition by viewModel.cursorPosition.collectAsStateWithLifecycle()
     val result by viewModel.result.collectAsStateWithLifecycle()
     val isWelcome by viewModel.isWelcome.collectAsStateWithLifecycle()
     val justCalculated by viewModel.justCalculated.collectAsStateWithLifecycle()
+
+    val clipboardManager = LocalClipboardManager.current
+    var showMenu by remember { mutableStateOf(false) }
+    var menuOffset by remember { mutableStateOf(androidx.compose.ui.geometry.Offset.Zero) }
+    var dragAccumulator by remember { mutableStateOf(0f) }
 
     val shift by viewModel.shift.collectAsStateWithLifecycle()
     val alpha by viewModel.alpha.collectAsStateWithLifecycle()
@@ -283,28 +297,191 @@ fun CalculatorScreen(
                         )
                     }
 
+                    var textLayoutResult by remember { mutableStateOf<androidx.compose.ui.text.TextLayoutResult?>(null) }
+
+                    val displayAnnotatedExpr = remember(expr, cursorPosition) {
+                        val pos = cursorPosition
+                        if (pos != null && pos in 0..expr.length) {
+                            buildAnnotatedString {
+                                append(expr.substring(0, pos))
+                                withStyle(SpanStyle(
+                                    color = if (isDark) Color(0xFF10B981) else Color(0xFFB91C1C),
+                                    fontWeight = FontWeight.Bold
+                                )) {
+                                    append("|")
+                                }
+                                append(expr.substring(pos))
+                            }
+                        } else {
+                            buildAnnotatedString {
+                                append(expr.ifEmpty { "0" })
+                            }
+                        }
+                    }
+
                     Column(
                         modifier = Modifier
                             .fillMaxSize()
-                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                            .padding(horizontal = 12.dp, vertical = 10.dp)
+                            .pointerInput(Unit) {
+                                detectTapGestures(
+                                    onDoubleTap = {
+                                        viewModel.toggleCursor()
+                                        val active = (viewModel.cursorPosition.value != null)
+                                        android.widget.Toast.makeText(
+                                            context,
+                                            if (active) "Cursor Active! Drag left/right to move cursor" else "Cursor Deactivated",
+                                            android.widget.Toast.LENGTH_SHORT
+                                        ).show()
+                                    },
+                                    onLongPress = { offset ->
+                                        menuOffset = offset
+                                        showMenu = true
+                                    }
+                                )
+                            }
+                            .pointerInput(cursorPosition) {
+                                detectHorizontalDragGestures(
+                                    onDragStart = { dragAccumulator = 0f },
+                                    onHorizontalDrag = { change, dragAmount ->
+                                        if (cursorPosition != null) {
+                                            dragAccumulator += dragAmount
+                                            val threshold = 25f
+                                            if (dragAccumulator >= threshold) {
+                                                viewModel.moveCursorRight()
+                                                dragAccumulator = 0f
+                                            } else if (dragAccumulator <= -threshold) {
+                                                viewModel.moveCursorLeft()
+                                                dragAccumulator = 0f
+                                            }
+                                        }
+                                    }
+                                )
+                            },
                         verticalArrangement = Arrangement.SpaceBetween,
                         horizontalAlignment = Alignment.End
                     ) {
-                        // Expression line (scrolling horizontally automatically)
+                        DropdownMenu(
+                            expanded = showMenu,
+                            onDismissRequest = { showMenu = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Copy Expression") },
+                                onClick = {
+                                    showMenu = false
+                                    if (expr.isNotEmpty()) {
+                                        clipboardManager.setText(AnnotatedString(expr))
+                                        android.widget.Toast.makeText(context, "Input Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Nothing to copy!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Paste") },
+                                onClick = {
+                                    showMenu = false
+                                    val clipText = clipboardManager.getText()?.text
+                                    if (!clipText.isNullOrEmpty()) {
+                                        viewModel.insertValueToExpression(clipText)
+                                        android.widget.Toast.makeText(context, "Pasted!", android.widget.Toast.LENGTH_SHORT).show()
+                                    } else {
+                                        android.widget.Toast.makeText(context, "Clipboard is empty!", android.widget.Toast.LENGTH_SHORT).show()
+                                    }
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Clear Cursor") },
+                                onClick = {
+                                    showMenu = false
+                                    if (cursorPosition != null) {
+                                        viewModel.toggleCursor()
+                                    }
+                                }
+                            )
+                        }
+
+                        // Expression line (scrolling horizontally automatically when cursor is not active)
+                        val scrollState = rememberScrollState(Int.MAX_VALUE)
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .horizontalScroll(rememberScrollState(Int.MAX_VALUE)),
+                                .then(
+                                    if (cursorPosition == null) {
+                                        Modifier.horizontalScroll(scrollState)
+                                    } else {
+                                        Modifier
+                                    }
+                                ),
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             Text(
-                                text = expr.ifEmpty { "0" },
+                                text = displayAnnotatedExpr,
                                 fontSize = 18.sp,
                                 fontFamily = FontFamily.Monospace,
                                 fontWeight = FontWeight.Medium,
                                 color = lcdTextColor.copy(alpha = 0.85f),
                                 textAlign = TextAlign.End,
-                                maxLines = 1
+                                maxLines = 1,
+                                onTextLayout = { textLayoutResult = it },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .pointerInput(cursorPosition, displayAnnotatedExpr) {
+                                        detectTapGestures(
+                                            onDoubleTap = { offset ->
+                                                if (cursorPosition == null) {
+                                                    textLayoutResult?.let { layoutResult ->
+                                                        val tappedIndex = layoutResult.getOffsetForPosition(offset)
+                                                        viewModel.cursorPosition.value = tappedIndex.coerceIn(0, expr.length)
+                                                        android.widget.Toast.makeText(
+                                                            context,
+                                                            "Cursor Active!",
+                                                            android.widget.Toast.LENGTH_SHORT
+                                                        ).show()
+                                                    }
+                                                } else {
+                                                    viewModel.cursorPosition.value = null
+                                                    android.widget.Toast.makeText(
+                                                        context,
+                                                        "Cursor Deactivated!",
+                                                        android.widget.Toast.LENGTH_SHORT
+                                                    ).show()
+                                                }
+                                            },
+                                            onTap = { offset ->
+                                                if (cursorPosition != null) {
+                                                    textLayoutResult?.let { layoutResult ->
+                                                        val tappedIndex = layoutResult.getOffsetForPosition(offset)
+                                                        val pos = cursorPosition!!
+                                                        val originalIndex = if (tappedIndex <= pos) tappedIndex else (tappedIndex - 1).coerceAtLeast(0)
+                                                        viewModel.cursorPosition.value = originalIndex.coerceIn(0, expr.length)
+                                                    }
+                                                }
+                                            },
+                                            onLongPress = { offset ->
+                                                menuOffset = offset
+                                                showMenu = true
+                                            }
+                                        )
+                                    }
+                                    .pointerInput(cursorPosition) {
+                                        detectHorizontalDragGestures(
+                                            onDragStart = { dragAccumulator = 0f },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                if (cursorPosition != null) {
+                                                    dragAccumulator += dragAmount
+                                                    val threshold = 15f
+                                                    if (dragAccumulator >= threshold) {
+                                                        viewModel.moveCursorRight()
+                                                        dragAccumulator = 0f
+                                                    } else if (dragAccumulator <= -threshold) {
+                                                        viewModel.moveCursorLeft()
+                                                        dragAccumulator = 0f
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
                             )
                         }
 
@@ -312,6 +489,16 @@ fun CalculatorScreen(
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
+                                .pointerInput(result) {
+                                    detectTapGestures(
+                                        onLongPress = {
+                                            if (result.isNotEmpty() && result != "0" && !isWelcome) {
+                                                clipboardManager.setText(AnnotatedString(result))
+                                                android.widget.Toast.makeText(context, "Result Copied!", android.widget.Toast.LENGTH_SHORT).show()
+                                            }
+                                        }
+                                    )
+                                }
                                 .horizontalScroll(rememberScrollState()),
                             contentAlignment = Alignment.CenterEnd
                         ) {
@@ -372,13 +559,51 @@ fun CalculatorScreen(
                     horizontalArrangement = Arrangement.Center,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    if (cursorPosition != null) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                .clickable { viewModel.moveCursorLeft() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowLeft,
+                                contentDescription = "Move Cursor Left",
+                                tint = textColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                        Spacer(modifier = Modifier.width(8.dp))
+                    }
+
                     Text(
-                        text = "H R I D O Y ' S   P R E M I U M   E D I T I O N",
+                        text = "H R I D O Y ' S   C A L C U L A T O R",
                         color = textColor.copy(alpha = 0.35f),
                         fontSize = 8.sp,
                         fontWeight = FontWeight.Bold,
                         letterSpacing = 1.sp
                     )
+
+                    if (cursorPosition != null) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier
+                                .size(24.dp)
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                .clickable { viewModel.moveCursorRight() }
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.KeyboardArrowRight,
+                                contentDescription = "Move Cursor Right",
+                                tint = textColor,
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
                 }
             }
 
@@ -704,7 +929,7 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
             SciBtn("5", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("5")) { viewModel.pressBaseDigit("5") }
             SciBtn("6", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("6")) { viewModel.pressBaseDigit("6") }
             SciBtn("Abs", bg = funcBg, textColor = Color.White, topLabel = "Rnd", modifier = Modifier.weight(10f), enabled = isButtonEnabled("abs")) { viewModel.pressFunc("abs") }
-            SciBtn("STO", bg = funcBg, textColor = Color.White, topLabel = "clear", modifier = Modifier.weight(10f), enabled = isButtonEnabled("sto")) { viewModel.pressSto() }
+            SciBtn("STO", bg = funcBg, textColor = Color.White, alphaLabel = "clear", modifier = Modifier.weight(10f), enabled = isButtonEnabled("sto")) { viewModel.pressSto() }
             SciBtn("-", bg = opBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("-")) { viewModel.pressOp("-") }
         }
         // Row 7

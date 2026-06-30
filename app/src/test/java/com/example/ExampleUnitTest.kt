@@ -80,8 +80,8 @@ class ExampleUnitTest {
       val rawValue = engine.evaluate(actualSymbol)
       val formatted = engine.formatResult(rawValue)
       assertNotEquals("Symbol $symbol formatted to 0", "0", formatted)
-      if (abs(rawValue) >= 10000 || abs(rawValue) <= 0.0001) {
-        assertTrue("Symbol $symbol with value $rawValue should format using ×10^", formatted.contains("×10^"))
+      if (abs(rawValue) >= 1e9 || abs(rawValue) <= 0.0001) {
+        assertFalse("Symbol $symbol with value $rawValue should NOT automatically format using ×10^", formatted.contains("×10^"))
       }
       println("Formatted $symbol ($rawValue) -> $formatted")
     }
