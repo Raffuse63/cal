@@ -427,7 +427,28 @@ fun CalculatorScreen(
                                 maxLines = 1,
                                 onTextLayout = { textLayoutResult = it },
                                 modifier = Modifier
-                                    .fillMaxWidth()
+                                    .then(
+                                        if (cursorPosition != null) {
+                                            Modifier.pointerInput(cursorPosition) {
+                                                detectHorizontalDragGestures(
+                                                    onDragStart = { dragAccumulator = 0f },
+                                                    onHorizontalDrag = { change, dragAmount ->
+                                                        dragAccumulator += dragAmount
+                                                        val threshold = 15f
+                                                        if (dragAccumulator >= threshold) {
+                                                            viewModel.moveCursorRight()
+                                                            dragAccumulator = 0f
+                                                        } else if (dragAccumulator <= -threshold) {
+                                                            viewModel.moveCursorLeft()
+                                                            dragAccumulator = 0f
+                                                        }
+                                                    }
+                                                )
+                                            }
+                                        } else {
+                                            Modifier
+                                        }
+                                    )
                                     .pointerInput(cursorPosition, displayAnnotatedExpr) {
                                         detectTapGestures(
                                             onDoubleTap = { offset ->
@@ -463,24 +484,6 @@ fun CalculatorScreen(
                                             onLongPress = { offset ->
                                                 menuOffset = offset
                                                 showMenu = true
-                                            }
-                                        )
-                                    }
-                                    .pointerInput(cursorPosition) {
-                                        detectHorizontalDragGestures(
-                                            onDragStart = { dragAccumulator = 0f },
-                                            onHorizontalDrag = { change, dragAmount ->
-                                                if (cursorPosition != null) {
-                                                    dragAccumulator += dragAmount
-                                                    val threshold = 15f
-                                                    if (dragAccumulator >= threshold) {
-                                                        viewModel.moveCursorRight()
-                                                        dragAccumulator = 0f
-                                                    } else if (dragAccumulator <= -threshold) {
-                                                        viewModel.moveCursorLeft()
-                                                        dragAccumulator = 0f
-                                                    }
-                                                }
                                             }
                                         )
                                     }
