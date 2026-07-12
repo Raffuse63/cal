@@ -406,6 +406,11 @@ fun CalculatorScreen(
 
                         // Expression line (scrolling horizontally automatically when cursor is not active)
                         val scrollState = rememberScrollState(Int.MAX_VALUE)
+                        LaunchedEffect(scrollState.maxValue) {
+                            if (scrollState.maxValue > 0) {
+                                scrollState.scrollTo(scrollState.maxValue)
+                            }
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -489,6 +494,12 @@ fun CalculatorScreen(
                         }
 
                         // Calculated Result line (larger font)
+                        val resultScrollState = rememberScrollState()
+                        LaunchedEffect(resultScrollState.maxValue) {
+                            if (resultScrollState.maxValue > 0) {
+                                resultScrollState.scrollTo(resultScrollState.maxValue)
+                            }
+                        }
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -502,7 +513,7 @@ fun CalculatorScreen(
                                         }
                                     )
                                 }
-                                .horizontalScroll(rememberScrollState()),
+                                .horizontalScroll(resultScrollState),
                             contentAlignment = Alignment.CenterEnd
                         ) {
                             if (isWelcome) {
