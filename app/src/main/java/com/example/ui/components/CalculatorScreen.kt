@@ -1652,7 +1652,6 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
     val accentBlue = Color(0xFF2563EB)
     val cardBorder = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
 
-    var selectedTab by remember { mutableStateOf(0) } // 0 = Button Work List, 1 = Developer Profile
     var searchQuery by remember { mutableStateOf("") }
 
     val filteredButtons = remember(searchQuery) {
@@ -1719,254 +1718,64 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                     }
                 }
 
-                // Tab Switcher Row
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
-                        .padding(horizontal = 12.dp, vertical = 6.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedTab == 0) accentBlue else Color.Transparent)
-                            .border(1.dp, if (selectedTab == 0) accentBlue else cardBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                            .clickable { selectedTab = 0 }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "🔘 Button Work List",
-                            color = if (selectedTab == 0) Color.White else textCol,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-
-                    Box(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (selectedTab == 1) accentBlue else Color.Transparent)
-                            .border(1.dp, if (selectedTab == 1) accentBlue else cardBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
-                            .clickable { selectedTab = 1 }
-                            .padding(vertical = 8.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Text(
-                            text = "👤 Developer Profile",
-                            color = if (selectedTab == 1) Color.White else textCol,
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Bold
-                        )
-                    }
-                }
-
                 Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
 
-                // Tab Content
-                if (selectedTab == 0) {
-                    // TAB 0: BUTTON WORK LIST
-                    Column(modifier = Modifier.fillMaxSize()) {
-                        // Search bar
-                        OutlinedTextField(
-                            value = searchQuery,
-                            onValueChange = { searchQuery = it },
-                            placeholder = { Text("Enter Something....", fontSize = 11.sp) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(horizontal = 12.dp, vertical = 6.dp),
-                            singleLine = true,
-                            shape = RoundedCornerShape(8.dp),
-                            colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = accentBlue,
-                                unfocusedBorderColor = cardBorder.copy(alpha = 0.5f)
-                            ),
-                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = textCol),
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = Icons.Default.Search,
-                                    contentDescription = "Search",
-                                    tint = textCol.copy(alpha = 0.5f),
-                                    modifier = Modifier.size(16.dp)
-                                )
-                            },
-                            trailingIcon = {
-                                if (searchQuery.isNotEmpty()) {
-                                    IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
-                                        Icon(Icons.Default.Close, contentDescription = "Clear search", tint = textCol.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
-                                    }
-                                }
-                            }
-                        )
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Results List
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .weight(1f)
-                                .padding(horizontal = 12.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            contentPadding = PaddingValues(bottom = 12.dp)
+                // Single Unified Scrollable Content
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                    contentPadding = PaddingValues(top = 10.dp, bottom = 14.dp)
+                ) {
+                    // 1. Profile and Name
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            if (filteredButtons.isEmpty()) {
-                                item {
+                            SubcomposeAsyncImage(
+                                model = ImageRequest.Builder(context)
+                                    .data("https://pbs.twimg.com/profile_images/1549038045931769862/NJjQA0_i_400x400.jpg")
+                                    .crossfade(true)
+                                    .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                                    .build(),
+                                contentDescription = "Developer Profile",
+                                contentScale = ContentScale.Crop,
+                                modifier = Modifier
+                                    .size(72.dp)
+                                    .clip(CircleShape)
+                                    .border(2.dp, accentBlue, CircleShape),
+                                loading = {
                                     Box(
                                         modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp),
+                                            .fillMaxSize()
+                                            .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        Text(
-                                            text = "No buttons match your search query.",
-                                            color = textCol.copy(alpha = 0.5f),
-                                            fontSize = 12.sp,
-                                            fontWeight = FontWeight.Medium
-                                        )
+                                        Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
                                     }
-                                }
-                            } else {
-                                items(filteredButtons) { btn ->
-                                    Card(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        colors = CardDefaults.cardColors(
-                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
-                                        ),
-                                        shape = RoundedCornerShape(8.dp),
-                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                },
+                                error = {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxSize()
+                                            .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Column(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(10.dp)
-                                        ) {
-                                            Row(
-                                                modifier = Modifier.fillMaxWidth(),
-                                                horizontalArrangement = Arrangement.SpaceBetween,
-                                                verticalAlignment = Alignment.CenterVertically
-                                            ) {
-                                                // Button Key Badge
-                                                Box(
-                                                    modifier = Modifier
-                                                        .clip(RoundedCornerShape(3.dp))
-                                                        .background(
-                                                            when {
-                                                                btn.key.contains("SHIFT") -> Color(0xFFD97706) // Yellow/Amber
-                                                                btn.key.contains("ALPHA") -> Color(0xFFDC2626) // Red
-                                                                btn.key == "AC" || btn.key == "DEL" -> Color(0xFFDC2626)
-                                                                btn.key == "=" -> Color(0xFF2563EB)
-                                                                else -> if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
-                                                            }
-                                                        )
-                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
-                                                ) {
-                                                    Text(
-                                                        text = btn.key,
-                                                        color = Color.White,
-                                                        fontSize = 8.sp,
-                                                        fontWeight = FontWeight.Bold,
-                                                        fontFamily = FontFamily.Monospace
-                                                    )
-                                                }
-
-                                                // Combo Chip if available
-                                                if (btn.combo != "Direct Tap" && btn.combo.trim() != btn.key.trim()) {
-                                                    Box(
-                                                        modifier = Modifier
-                                                            .clip(RoundedCornerShape(3.dp))
-                                                            .background(Color(0xFFD97706).copy(alpha = 0.15f))
-                                                            .padding(horizontal = 4.dp, vertical = 1.dp)
-                                                    ) {
-                                                        Text(
-                                                            text = btn.combo,
-                                                            color = Color(0xFFD97706),
-                                                            fontSize = 7.5.sp,
-                                                            fontWeight = FontWeight.Bold
-                                                        )
-                                                    }
-                                                }
-                                            }
-
-                                            Spacer(modifier = Modifier.height(6.dp))
-
-                                            // Name
-                                            Text(
-                                                text = btn.name,
-                                                color = textCol,
-                                                fontSize = 13.sp,
-                                                fontWeight = FontWeight.Bold
-                                            )
-
-                                            Spacer(modifier = Modifier.height(2.dp))
-
-                                            // Description / Work list explanation
-                                            Text(
-                                                text = btn.description,
-                                                color = textCol.copy(alpha = 0.8f),
-                                                fontSize = 11.sp,
-                                                lineHeight = 15.sp
-                                            )
-                                        }
+                                        Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
                                     }
                                 }
-                            }
+                            )
+
+                            Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                            Text(text = "Calculator Developer & Software Engineer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp, textAlign = TextAlign.Center)
                         }
                     }
-                } else {
-                    // TAB 1: DEVELOPER PROFILE & CONTACTS
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .padding(14.dp)
-                            .verticalScroll(rememberScrollState()),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        // Dynamic Profile Image loaded via Coil with custom "H" circle fallback
-                        SubcomposeAsyncImage(
-                            model = ImageRequest.Builder(context)
-                                .data("https://pbs.twimg.com/profile_images/1549038045931769862/NJjQA0_i_400x400.jpg")
-                                .crossfade(true)
-                                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                                .build(),
-                            contentDescription = "Developer Profile",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(72.dp)
-                                .clip(CircleShape)
-                                .border(2.dp, accentBlue, CircleShape),
-                            loading = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
-                                }
-                            },
-                            error = {
-                                Box(
-                                    modifier = Modifier
-                                        .fillMaxSize()
-                                        .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
-                                }
-                            }
-                        )
 
-                        Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                        Text(text = "Calculator Developer & Software Engineer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp, textAlign = TextAlign.Center)
-
-                        Spacer(modifier = Modifier.height(4.dp))
-
-                        // Contact action flows
+                    // 2. Phone and Email
+                    item {
                         Column(
                             modifier = Modifier.fillMaxWidth(),
                             verticalArrangement = Arrangement.spacedBy(8.dp)
@@ -2013,26 +1822,185 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                                 }
                             }
                         }
+                    }
 
-                        Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
+                    item {
+                        Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                    }
 
-                        // Social links action widgets
-                        Text(
-                            text = "SOCIAL PROFILES",
-                            color = Color(0xFF60A5FA),
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.Bold,
-                            modifier = Modifier.align(Alignment.Start)
-                        )
-
-                        Row(
+                    // 3. Button Info Section Header & Search
+                    item {
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            SocialNetworkCard("Facebook", "https://facebook.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
-                            SocialNetworkCard("WhatsApp", "https://wa.me/8801600180139", context, textCol, Modifier.weight(1f))
-                            SocialNetworkCard("IMO", "https://s.imoim.net/jyLtH6", context, textCol, Modifier.weight(1f))
-                            SocialNetworkCard("X", "https://x.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                            Text(
+                                text = "🔘 BUTTON WORK LIST",
+                                color = Color(0xFF60A5FA),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            OutlinedTextField(
+                                value = searchQuery,
+                                onValueChange = { searchQuery = it },
+                                placeholder = { Text("Enter Something....", fontSize = 11.sp) },
+                                modifier = Modifier.fillMaxWidth(),
+                                singleLine = true,
+                                shape = RoundedCornerShape(8.dp),
+                                colors = OutlinedTextFieldDefaults.colors(
+                                    focusedBorderColor = accentBlue,
+                                    unfocusedBorderColor = cardBorder.copy(alpha = 0.5f)
+                                ),
+                                textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = textCol),
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = Icons.Default.Search,
+                                        contentDescription = "Search",
+                                        tint = textCol.copy(alpha = 0.5f),
+                                        modifier = Modifier.size(16.dp)
+                                    )
+                                },
+                                trailingIcon = {
+                                    if (searchQuery.isNotEmpty()) {
+                                        IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                            Icon(Icons.Default.Close, contentDescription = "Clear search", tint = textCol.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                        }
+                                    }
+                                }
+                            )
+                        }
+                    }
+
+                    // Button Items List
+                    if (filteredButtons.isEmpty()) {
+                        item {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(24.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text(
+                                    text = "No buttons match your search query.",
+                                    color = textCol.copy(alpha = 0.5f),
+                                    fontSize = 12.sp,
+                                    fontWeight = FontWeight.Medium
+                                )
+                            }
+                        }
+                    } else {
+                        items(filteredButtons) { btn ->
+                            Card(
+                                modifier = Modifier.fillMaxWidth(),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                ),
+                                shape = RoundedCornerShape(8.dp),
+                                border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                            ) {
+                                Column(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(10.dp)
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        horizontalArrangement = Arrangement.SpaceBetween,
+                                        verticalAlignment = Alignment.CenterVertically
+                                    ) {
+                                        // Button Key Badge
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(3.dp))
+                                                .background(
+                                                    when {
+                                                        btn.key.contains("SHIFT") -> Color(0xFFD97706) // Yellow/Amber
+                                                        btn.key.contains("ALPHA") -> Color(0xFFDC2626) // Red
+                                                        btn.key == "AC" || btn.key == "DEL" -> Color(0xFFDC2626)
+                                                        btn.key == "=" -> Color(0xFF2563EB)
+                                                        else -> if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                                    }
+                                                )
+                                                .padding(horizontal = 4.dp, vertical = 1.dp)
+                                        ) {
+                                            Text(
+                                                text = btn.key,
+                                                color = Color.White,
+                                                fontSize = 8.sp,
+                                                fontWeight = FontWeight.Bold,
+                                                fontFamily = FontFamily.Monospace
+                                            )
+                                        }
+
+                                        // Combo Chip if available
+                                        if (btn.combo != "Direct Tap" && btn.combo.trim() != btn.key.trim()) {
+                                            Box(
+                                                modifier = Modifier
+                                                    .clip(RoundedCornerShape(3.dp))
+                                                    .background(Color(0xFFD97706).copy(alpha = 0.15f))
+                                                    .padding(horizontal = 4.dp, vertical = 1.dp)
+                                            ) {
+                                                Text(
+                                                    text = btn.combo,
+                                                    color = Color(0xFFD97706),
+                                                    fontSize = 7.5.sp,
+                                                    fontWeight = FontWeight.Bold
+                                                )
+                                            }
+                                        }
+                                    }
+
+                                    Spacer(modifier = Modifier.height(6.dp))
+
+                                    // Name
+                                    Text(
+                                        text = btn.name,
+                                        color = textCol,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Bold
+                                    )
+
+                                    Spacer(modifier = Modifier.height(2.dp))
+
+                                    // Description / Work list explanation
+                                    Text(
+                                        text = btn.description,
+                                        color = textCol.copy(alpha = 0.8f),
+                                        fontSize = 11.sp,
+                                        lineHeight = 15.sp
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    item {
+                        Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 4.dp))
+                    }
+
+                    // 4. Social Links at the very bottom
+                    item {
+                        Column(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            Text(
+                                text = "SOCIAL PROFILES",
+                                color = Color(0xFF60A5FA),
+                                fontSize = 10.sp,
+                                fontWeight = FontWeight.Bold
+                            )
+
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                SocialNetworkCard("Facebook", "https://facebook.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                                SocialNetworkCard("WhatsApp", "https://wa.me/8801600180139", context, textCol, Modifier.weight(1f))
+                                SocialNetworkCard("IMO", "https://s.imoim.net/jyLtH6", context, textCol, Modifier.weight(1f))
+                                SocialNetworkCard("X", "https://x.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                            }
                         }
                     }
                 }
