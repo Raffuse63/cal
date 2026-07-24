@@ -141,6 +141,167 @@ class CalculatorEngine(
         }
     }
 
+    fun evaluateToString(exprStr: String): String {
+        val trimmed = exprStr.trim()
+        if (trimmed.isEmpty()) return "0"
+
+        // 1. Check pure integer for current base
+        when (calcBase) {
+            10 -> {
+                if (trimmed.matches("^[+-]?\\d+$".toRegex())) {
+                    val res = if (trimmed.startsWith("+")) trimmed.substring(1) else trimmed
+                    try { ans = res.toDouble() } catch (_: Exception) {}
+                    return res
+                }
+                if (trimmed.matches("^[+-]?\\d+\\.\\d+$".toRegex())) {
+                    val res = if (trimmed.startsWith("+")) trimmed.substring(1) else trimmed
+                    try { ans = res.toDouble() } catch (_: Exception) {}
+                    return res
+                }
+            }
+            16 -> {
+                if (trimmed.matches("^[+-]?[0-9a-fA-F]+$".toRegex())) {
+                    val res = if (trimmed.startsWith("+")) trimmed.substring(1).uppercase() else trimmed.uppercase()
+                    try {
+                        val bigInt = java.math.BigInteger(res, 16)
+                        ans = bigInt.toDouble()
+                    } catch (_: Exception) {}
+                    return res
+                }
+            }
+            2 -> {
+                if (trimmed.matches("^[+-]?[01]+$".toRegex())) {
+                    val res = if (trimmed.startsWith("+")) trimmed.substring(1) else trimmed
+                    try {
+                        val bigInt = java.math.BigInteger(res, 2)
+                        ans = bigInt.toDouble()
+                    } catch (_: Exception) {}
+                    return res
+                }
+            }
+            8 -> {
+                if (trimmed.matches("^[+-]?[0-7]+$".toRegex())) {
+                    val res = if (trimmed.startsWith("+")) trimmed.substring(1) else trimmed
+                    try {
+                        val bigInt = java.math.BigInteger(res, 8)
+                        ans = bigInt.toDouble()
+                    } catch (_: Exception) {}
+                    return res
+                }
+            }
+        }
+
+        // 2. Try BigDecimal evaluation for base 10 expressions if no special functions are present
+        if (calcBase == 10 && isSimpleBigDecimalExpression(trimmed)) {
+            try {
+                val bdRes = evaluateBigDecimal(trimmed)
+                if (bdRes != null) {
+                    val dVal = bdRes.toDouble()
+                    val rounded = dVal.roundToLong()
+                    if (abs(dVal - rounded) < 1e-10) {
+                        ans = rounded.toDouble()
+                        return rounded.toString()
+                    }
+                    ans = dVal
+                    val plain = bdRes.stripTrailingZeros().toPlainString()
+                    return if (plain.contains(".") && plain.endsWith(".0")) {
+                        plain.substring(0, plain.length - 2)
+                    } else plain
+                }
+            } catch (_: Exception) {
+                // Fall back to standard evaluate
+            }
+        }
+
+        // 3. Fallback to double evaluate
+        val doubleVal = evaluate(trimmed)
+        ans = doubleVal
+        return formatBaseResult(doubleVal)
+    }
+
+    private fun isSimpleBigDecimalExpression(expr: String): Boolean {
+        val clean = expr.replace("Ans", "1").replace("×", "*").replace("÷", "/")
+        return clean.isNotEmpty() && clean.all { ch ->
+            ch.isDigit() || ch in listOf('.', '+', '-', '*', '/', '(', ')', '%', ' ')
+        }
+    }
+
+    private fun evaluateBigDecimal(exprStr: String): java.math.BigDecimal? {
+        val clean = exprStr.replace("Ans", ans.toString()).replace("×", "*").replace("÷", "/")
+        var pos = -1
+        var ch = ' '
+
+        fun nextChar() {
+            pos++
+            ch = if (pos < clean.length) clean[pos] else '\u0000'
+        }
+
+        fun eat(charToEat: Char): Boolean {
+            while (ch == ' ') nextChar()
+            if (ch == charToEat) {
+                nextChar()
+                return true
+            }
+            return false
+        }
+
+        fun parseExpression(): java.math.BigDecimal {
+            fun parseFactor(): java.math.BigDecimal {
+                if (eat('+')) return parseFactor()
+                if (eat('-')) return parseFactor().negate()
+
+                var x: java.math.BigDecimal
+                val startPos = pos
+                if (eat('(')) {
+                    x = parseExpression()
+                    eat(')')
+                } else if (ch in '0'..'9' || ch == '.') {
+                    while (ch in '0'..'9' || ch == '.') {
+                        nextChar()
+                    }
+                    val numStr = clean.substring(startPos, pos)
+                    if (numStr.isEmpty()) throw IllegalArgumentException("Empty num")
+                    x = java.math.BigDecimal(numStr)
+                } else {
+                    throw IllegalArgumentException("Unexpected char $ch")
+                }
+                while (eat('%')) {
+                    x = x.divide(java.math.BigDecimal("100"), 20, java.math.RoundingMode.HALF_UP)
+                }
+                return x
+            }
+
+            fun parseTerm(): java.math.BigDecimal {
+                var x = parseFactor()
+                while (true) {
+                    if (eat('*')) {
+                        x = x.multiply(parseFactor(), java.math.MathContext.DECIMAL128)
+                    } else if (eat('/')) {
+                        val divisor = parseFactor()
+                        if (divisor.compareTo(java.math.BigDecimal.ZERO) == 0) throw ArithmeticException("Division by zero")
+                        x = x.divide(divisor, 20, java.math.RoundingMode.HALF_UP)
+                    } else break
+                }
+                return x
+            }
+
+            var x = parseTerm()
+            while (true) {
+                if (eat('+')) {
+                    x = x.add(parseTerm(), java.math.MathContext.DECIMAL128)
+                } else if (eat('-')) {
+                    x = x.subtract(parseTerm(), java.math.MathContext.DECIMAL128)
+                } else break
+            }
+            return x
+        }
+
+        nextChar()
+        val result = parseExpression()
+        if (pos < clean.length) return null
+        return result
+    }
+
     fun formatResult(num: Double): String {
         if (!num.isFinite()) return "Math ERROR"
         
@@ -149,7 +310,7 @@ class CalculatorEngine(
         if (absNum < 1e15) {
             if (num % 1 == 0.0) return num.toLong().toString()
             val rounded = num.roundToLong()
-            if (rounded != 0L && abs(num - rounded) < 1e-12) return rounded.toString()
+            if (abs(num - rounded) < 1e-10) return rounded.toString()
         }
         
         // Format to plain decimal string without any scientific notation
@@ -354,9 +515,15 @@ class CalculatorEngine(
         }
 
         // Implicit multiplications: e.g. "2(3)" -> "2*(3)", "2tan(30)" -> "2*tan(30)", "πsin(x)" -> "π*sin(x)", ")(" -> ")*("
-        preprocessed = preprocessed.replace("(\\d|\\)|π)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
-        preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
-        preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
+        if (calcBase != 16) {
+            preprocessed = preprocessed.replace("(\\d|\\)|π|%)(?=[a-zA-Z\\p{L}√∛\\(])".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("([a-zA-Z\\p{L}])(?=\\d)".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("(?<=%)(?=\\d)".toRegex(), "*")
+            preprocessed = preprocessed.replace("\\)(?=\\d|π|\\p{L})".toRegex(), ")*")
+        } else {
+            preprocessed = preprocessed.replace("([0-9a-fA-F]|\\)|π)(?=\\()".toRegex(), "$1*")
+            preprocessed = preprocessed.replace("\\)(?=[0-9a-fA-F]|π|\\()".toRegex(), ")*")
+        }
         
         return Parser(preprocessed, this).parse()
     }
@@ -578,13 +745,23 @@ class CalculatorEngine(
                 throw IllegalArgumentException("Syntax ERROR")
             }
 
-            // check exponent or factorial postfixes
-            if (eat('^')) {
-                val exponent = parseFactor()
-                x = x.pow(exponent)
-            }
-            if (eat('!')) {
-                x = engine.factorial(x)
+            // check exponent, factorial, or percentage postfixes
+            var changed = true
+            while (changed) {
+                changed = false
+                if (eat('^')) {
+                    val exponent = parseFactor()
+                    x = x.pow(exponent)
+                    changed = true
+                }
+                if (eat('!')) {
+                    x = engine.factorial(x)
+                    changed = true
+                }
+                if (eat('%')) {
+                    x /= 100.0
+                    changed = true
+                }
             }
 
             return x

@@ -142,18 +142,43 @@ fun CalculatorScreen(
 
                 Box(
                     modifier = Modifier
-                        .clip(RoundedCornerShape(6.dp))
-                        .background(Color(0xFF2563EB))
-                        .border(1.dp, Color(0xFF2563EB), RoundedCornerShape(6.dp))
+                        .clip(CircleShape)
+                        .background(
+                            Brush.horizontalGradient(
+                                listOf(Color(0xFF2563EB), Color(0xFF1D4ED8))
+                            )
+                        )
+                        .border(1.dp, Color(0xFF60A5FA), CircleShape)
                         .clickable { viewModel.showDevInfo.value = true }
-                        .padding(horizontal = 8.dp, vertical = 4.dp)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    Text(
-                        text = "Hridoy Hasan Yeasin",
-                        color = Color.White,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(16.dp)
+                                .clip(CircleShape)
+                                .background(Color.White),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "i",
+                                color = Color(0xFF2563EB),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.ExtraBold,
+                                fontFamily = FontFamily.Serif
+                            )
+                        }
+                        Text(
+                            text = "Info & Guide",
+                            color = Color.White,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
                 }
             }
 
@@ -490,13 +515,20 @@ fun CalculatorScreen(
                             )
                         }
 
-                        // Calculated Result line (larger font)
+                        // Calculated Result line (larger font with dynamic font sizing up to 22 digits)
                         val resultScrollState = rememberScrollState()
-                        LaunchedEffect(resultScrollState.maxValue) {
+                        LaunchedEffect(result, resultScrollState.maxValue) {
                             if (resultScrollState.maxValue > 0) {
                                 resultScrollState.scrollTo(resultScrollState.maxValue)
                             }
                         }
+
+                        val resultFontSize = when {
+                            result.length <= 10 -> 32.sp
+                            result.length <= 22 -> (32 - (result.length - 10) * (16f / 12f)).sp
+                            else -> 16.sp
+                        }
+
                         Box(
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -541,7 +573,7 @@ fun CalculatorScreen(
                             } else {
                                 Text(
                                     text = result,
-                                    fontSize = 32.sp,
+                                    fontSize = resultFontSize,
                                     fontFamily = FontFamily.Monospace,
                                     fontWeight = FontWeight.Bold,
                                     color = lcdTextColor,
@@ -954,8 +986,8 @@ fun ScientificCalculatorGrid(viewModel: CalculatorViewModel, isDark: Boolean, ca
         }
         // Row 8
         Row(modifier = Modifier.weight(rowWeight).fillMaxWidth()) {
-            SciBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("0")) { viewModel.pressBaseDigit("0") }
             SciBtn(".", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled(".")) { viewModel.pressKey(".") }
+            SciBtn("0", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("0")) { viewModel.pressBaseDigit("0") }
             SciBtn("±", bg = buttonBg, textColor = buttonTextColor, modifier = Modifier.weight(10f), enabled = isButtonEnabled("±")) { viewModel.pressNeg() }
             SciBtn("%", bg = funcBg, textColor = Color.White, topLabel = ",", modifier = Modifier.weight(10f), enabled = isButtonEnabled("%")) { viewModel.pressKey("%") }
             SciBtn("Ans", bg = funcBg, textColor = Color.White, modifier = Modifier.weight(10f), enabled = isButtonEnabled("ans")) { viewModel.pressAns() }
@@ -1520,23 +1552,128 @@ fun EquationSolverDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
     }
 }
 
+data class ButtonGuideItem(
+    val key: String,
+    val name: String,
+    val category: String,
+    val description: String,
+    val combo: String = "Direct Tap"
+)
+
+val allCalculatorButtonsGuide = listOf(
+    // Control & Modes
+    ButtonGuideItem("SHIFT", "Shift Modifier Key", "Control & Modes", "Activates secondary yellow functions printed above buttons (e.g. sin⁻¹, 10ˣ, x³, ³√, CONV, CONST).", "Direct Tap"),
+    ButtonGuideItem("ALPHA", "Alpha Modifier Key", "Control & Modes", "Activates tertiary pink/red variable letters and functions (A, B, C, D, E, F, csc, sec, cot).", "Direct Tap"),
+    ButtonGuideItem("MODE", "Angle Unit Toggle", "Control & Modes", "Toggles angle measurement unit between DEG (Degrees) and RAD (Radians).", "Direct Tap"),
+    ButtonGuideItem("SHIFT + MODE", "f(x) Table Evaluator", "Control & Modes", "Opens function table generator to sample y values for f(x) over a range of x values.", "SHIFT + MODE"),
+    ButtonGuideItem("ALPHA + MODE", "Base-N Converter", "Control & Modes", "Opens Base-N conversion mode for Decimal, Binary, Octal, and Hexadecimal numbers.", "ALPHA + MODE"),
+    ButtonGuideItem("SHIFT + ALPHA + MODE", "Equation Solver", "Control & Modes", "Opens linear & quadratic equation solver tool.", "SHIFT + ALPHA + MODE"),
+    ButtonGuideItem("CONV", "Unit Converter", "Control & Modes", "Opens multi-category unit converter for length, mass, volume, speed, temperature, data, etc.", "SHIFT + % or SHIFT + 7"),
+    ButtonGuideItem("CONST", "Scientific Constants", "Control & Modes", "Opens database of 47 standard physical/chemical constants (c, g, h, e, etc.).", "SHIFT + 4"),
+    ButtonGuideItem("HIST", "Calculation History", "Control & Modes", "Opens history log to review, search, copy, or reuse past formulas and calculated results.", "Direct Tap"),
+    ButtonGuideItem("AC", "All Clear", "Control & Editing", "Clears current input expression, result display, and resets key modifier states.", "Direct Tap"),
+    ButtonGuideItem("SHIFT + AC", "Hardware Reset", "Control & Editing", "Performs full hardware reset, restoring default calculator settings.", "SHIFT + AC"),
+    ButtonGuideItem("DEL", "Delete Backspace", "Control & Editing", "Deletes single character or function token immediately behind the cursor.", "Direct Tap"),
+    ButtonGuideItem("◄ / ►", "Cursor Position", "Control & Editing", "Moves insertion cursor left or right within active input expression.", "Direct Tap"),
+    ButtonGuideItem("=", "Evaluate Result", "Control & Editing", "Evaluates current mathematical expression and saves result in Ans and History.", "Direct Tap"),
+
+    // Basic Digits & Arithmetic
+    ButtonGuideItem("0 – 9", "Digit Keys", "Digits & Arithmetic", "Enters numeric digits 0 through 9 into input expression.", "Direct Tap"),
+    ButtonGuideItem(".", "Decimal Point", "Digits & Arithmetic", "Inserts decimal separator point.", "Direct Tap"),
+    ButtonGuideItem("+", "Addition", "Digits & Arithmetic", "Adds two numbers or quantities together.", "Direct Tap"),
+    ButtonGuideItem("-", "Subtraction / Negative", "Digits & Arithmetic", "Subtracts numbers or enters negative quantity.", "Direct Tap"),
+    ButtonGuideItem("×", "Multiplication", "Digits & Arithmetic", "Multiplies two numbers together.", "Direct Tap"),
+    ButtonGuideItem("÷", "Division", "Digits & Arithmetic", "Divides numerator by denominator.", "Direct Tap"),
+    ButtonGuideItem("±", "Plus / Minus Sign", "Digits & Arithmetic", "Toggles positive or negative sign of current number or value.", "Direct Tap"),
+    ButtonGuideItem("%", "Percentage", "Digits & Arithmetic", "Calculates percentage value (divides preceding number by 100).", "Direct Tap"),
+    ButtonGuideItem(",", "Comma Separator", "Digits & Arithmetic", "Inserts argument separator for multi-parameter functions.", "SHIFT + %"),
+    ButtonGuideItem("( )", "Parentheses", "Digits & Arithmetic", "Encloses sub-expressions to control calculation precedence.", "Direct Tap"),
+
+    // Trigonometry
+    ButtonGuideItem("sin", "Sine", "Trigonometry", "Calculates trigonometric sine of angle in current DEG or RAD mode.", "Direct Tap"),
+    ButtonGuideItem("sin⁻¹", "ArcSine", "Trigonometry", "Calculates inverse sine (arcsin), returning angle in DEG or RAD.", "SHIFT + sin"),
+    ButtonGuideItem("cos", "Cosine", "Trigonometry", "Calculates trigonometric cosine of angle in current DEG or RAD mode.", "Direct Tap"),
+    ButtonGuideItem("cos⁻¹", "ArcCosine", "Trigonometry", "Calculates inverse cosine (arccos), returning angle in DEG or RAD.", "SHIFT + cos"),
+    ButtonGuideItem("tan", "Tangent", "Trigonometry", "Calculates trigonometric tangent of angle in current DEG or RAD mode.", "Direct Tap"),
+    ButtonGuideItem("tan⁻¹", "ArcTangent", "Trigonometry", "Calculates inverse tangent (arctan), returning angle in DEG or RAD.", "SHIFT + tan"),
+    ButtonGuideItem("csc", "Cosecant", "Trigonometry", "Calculates reciprocal sine (1 / sin(x)).", "ALPHA + sin"),
+    ButtonGuideItem("sec", "Secant", "Trigonometry", "Calculates reciprocal cosine (1 / cos(x)).", "ALPHA + cos"),
+    ButtonGuideItem("cot", "Cotangent", "Trigonometry", "Calculates reciprocal tangent (1 / tan(x)).", "ALPHA + tan"),
+    ButtonGuideItem("csc⁻¹", "ArcCosecant", "Trigonometry", "Calculates inverse cosecant angle.", "SHIFT + ALPHA + sin"),
+    ButtonGuideItem("sec⁻¹", "ArcSecant", "Trigonometry", "Calculates inverse secant angle.", "SHIFT + ALPHA + cos"),
+    ButtonGuideItem("cot⁻¹", "ArcCotangent", "Trigonometry", "Calculates inverse cotangent angle.", "SHIFT + ALPHA + tan"),
+    ButtonGuideItem("sinh", "Hyperbolic Sine", "Trigonometry", "Calculates hyperbolic sine function (eˣ - e⁻ˣ)/2.", "Direct Tap"),
+    ButtonGuideItem("cosh", "Hyperbolic Cosine", "Trigonometry", "Calculates hyperbolic cosine function (eˣ + e⁻ˣ)/2.", "Direct Tap"),
+    ButtonGuideItem("tanh", "Hyperbolic Tangent", "Trigonometry", "Calculates hyperbolic tangent function sinh(x)/cosh(x).", "Direct Tap"),
+
+    // Powers & Roots
+    ButtonGuideItem("x²", "Square", "Powers & Roots", "Squares the input value (x²).", "Direct Tap"),
+    ButtonGuideItem("x³", "Cube", "Powers & Roots", "Cubes the input value (x³).", "SHIFT + x²"),
+    ButtonGuideItem("xʸ or ^", "Exponentiation", "Powers & Roots", "Raises base x to exponent power y (x^y).", "Direct Tap"),
+    ButtonGuideItem("√", "Square Root", "Powers & Roots", "Calculates principal square root (√x).", "Direct Tap"),
+    ButtonGuideItem("³√", "Cube Root", "Powers & Roots", "Calculates cube root (³√x).", "SHIFT + √"),
+    ButtonGuideItem("ˣ√y", "X-th Root", "Powers & Roots", "Calculates x-th root of y.", "SHIFT + xʸ"),
+    ButtonGuideItem("log", "Common Logarithm", "Powers & Logs", "Calculates logarithm base 10 (log₁₀ x).", "Direct Tap"),
+    ButtonGuideItem("10ˣ", "10 Power X", "Powers & Logs", "Calculates 10 raised to power x (10^x).", "SHIFT + log"),
+    ButtonGuideItem("ln", "Natural Logarithm", "Powers & Logs", "Calculates natural logarithm base e (ln x).", "Direct Tap"),
+    ButtonGuideItem("eˣ", "e Power X", "Powers & Logs", "Calculates exponential e raised to power x (e^x).", "SHIFT + ln"),
+
+    // Functions & Combinatorics
+    ButtonGuideItem("x!", "Factorial", "Functions", "Calculates product of all positive integers up to x (x!).", "Direct Tap"),
+    ButtonGuideItem("x⁻¹", "Reciprocal", "Functions", "Calculates multiplicative inverse 1 / x.", "Direct Tap"),
+    ButtonGuideItem("nPr", "Permutation", "Functions", "Calculates permutations P(n, r) = n! / (n-r)!.", "Direct Tap"),
+    ButtonGuideItem("nCr", "Combination", "Functions", "Calculates combinations C(n, r) = n! / (r! * (n-r)!).", "Direct Tap"),
+    ButtonGuideItem("π", "Pi Constant", "Functions", "Inserts mathematical constant π (≈ 3.14159265359).", "Direct Tap"),
+    ButtonGuideItem("e", "Euler's Number", "Functions", "Inserts Euler's natural constant e (≈ 2.71828182845).", "Direct Tap"),
+    ButtonGuideItem("abs", "Absolute Value", "Functions", "Returns non-negative magnitude |x|.", "Direct Tap"),
+    ButtonGuideItem("Ran#", "Random Generator", "Functions", "Generates pseudo-random decimal number between 0 and 1.", "Direct Tap"),
+    ButtonGuideItem("gcd", "Greatest Common Divisor", "Functions", "Calculates largest positive integer dividing both arguments gcd(a, b).", "Direct Tap"),
+    ButtonGuideItem("lcm", "Least Common Multiple", "Functions", "Calculates smallest positive integer multiple of both arguments lcm(a, b).", "Direct Tap"),
+
+    // Memory & Variables
+    ButtonGuideItem("Ans", "Previous Result", "Memory & Vars", "Inserts value of previous calculation result into current expression.", "Direct Tap"),
+    ButtonGuideItem("STO", "Store Memory Variable", "Memory & Vars", "Stores current result into selected memory variable (A, B, C, D, E, F).", "Direct Tap"),
+    ButtonGuideItem("RCL", "Recall Memory Variable", "Memory & Vars", "Recalls value stored in memory variable (A, B, C, D, E, F).", "Direct Tap"),
+    ButtonGuideItem("SHIFT + STO", "Clear Memory Registers", "Memory & Vars", "Clears stored values across all variables A through F.", "SHIFT + STO"),
+    ButtonGuideItem("A, B, C, D, E, F", "Variables / Hex Digits", "Memory & Vars", "Used as variable registers in Standard mode or Hexadecimal digits in HEX mode.", "ALPHA + key or HEX mode"),
+
+    // Base-N Logic
+    ButtonGuideItem("AND, OR, XOR", "Bitwise Logic Operators", "Base-N Logic", "Performs bitwise logic operations in BIN, OCT, HEX, or DEC modes.", "Direct Tap in Base-N"),
+    ButtonGuideItem("NOT, NAND, NOR", "Bitwise Logic Gates", "Base-N Logic", "Performs bitwise complement or negated logic operations.", "Direct Tap in Base-N"),
+    ButtonGuideItem("Lsh / Rsh", "Bit Shifts", "Base-N Logic", "Shifts binary representation left or right by specified number of bits.", "Direct Tap in Base-N")
+)
+
 @Composable
 fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
     val context = LocalContext.current
     val bg = if (isDark) Color(0xFF1E293B) else Color(0xFFFFFFFF)
     val textCol = if (isDark) Color(0xFFF8FAFC) else Color(0xFF0F172A)
     val panelDarkCol = if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0)
+    val accentBlue = Color(0xFF2563EB)
+    val cardBorder = if (isDark) Color(0xFF475569) else Color(0xFF94A3B8)
+
+    var selectedTab by remember { mutableStateOf(0) } // 0 = Button Work List, 1 = Developer Profile
+    var searchQuery by remember { mutableStateOf("") }
+
+    val filteredButtons = remember(searchQuery) {
+        allCalculatorButtonsGuide.filter { item ->
+            searchQuery.trim().isEmpty() ||
+                    item.key.lowercase().contains(searchQuery.lowercase()) ||
+                    item.name.lowercase().contains(searchQuery.lowercase()) ||
+                    item.description.lowercase().contains(searchQuery.lowercase())
+        }
+    }
 
     Dialog(onDismissRequest = { viewModel.showDevInfo.value = false }) {
         Card(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f)
-                .padding(12.dp)
+                .fillMaxHeight(0.92f)
+                .padding(4.dp)
                 .testTag("dialog_dev_info"),
-            shape = RoundedCornerShape(10.dp),
+            shape = RoundedCornerShape(12.dp),
             colors = CardDefaults.cardColors(containerColor = bg),
-            border = BorderStroke(2.dp, if (isDark) Color(0xFF475569) else Color(0xFF94A3B8))
+            border = BorderStroke(2.dp, cardBorder)
         ) {
             Column(modifier = Modifier.fillMaxSize()) {
                 // Header
@@ -1544,167 +1681,359 @@ fun InfoDialog(viewModel: CalculatorViewModel, isDark: Boolean) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .background(panelDarkCol)
-                        .padding(12.dp),
+                        .padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text(text = "Developer Info", color = textCol, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    IconButton(onClick = { viewModel.showDevInfo.value = false }) {
-                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol)
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        Box(
+                            modifier = Modifier
+                                .size(22.dp)
+                                .clip(CircleShape)
+                                .background(accentBlue),
+                            contentAlignment = Alignment.Center
+                        ) {
+                            Text(
+                                text = "i",
+                                color = Color.White,
+                                fontSize = 13.sp,
+                                fontWeight = FontWeight.Bold,
+                                fontFamily = FontFamily.Serif
+                            )
+                        }
+                        Text(
+                            text = "Calculator Guide & Info",
+                            color = textCol,
+                            fontWeight = FontWeight.Bold,
+                            fontSize = 15.sp
+                        )
+                    }
+                    IconButton(
+                        onClick = { viewModel.showDevInfo.value = false },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(Icons.Default.Close, contentDescription = "Close", tint = textCol, modifier = Modifier.size(20.dp))
                     }
                 }
 
-                // Content
-                Column(
+                // Tab Switcher Row
+                Row(
                     modifier = Modifier
-                        .weight(1f)
-                        .padding(14.dp)
-                        .verticalScroll(rememberScrollState()),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                    verticalArrangement = Arrangement.spacedBy(12.dp)
+                        .fillMaxWidth()
+                        .background(if (isDark) Color(0xFF0F172A) else Color(0xFFF1F5F9))
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    // Dynamic Profile Image loaded via Coil with custom "H" circle fallback
-                    SubcomposeAsyncImage(
-                        model = ImageRequest.Builder(context)
-                            .data("https://pbs.twimg.com/profile_images/1549038045931769862/NJjQA0_i_400x400.jpg")
-                            .crossfade(true)
-                            .diskCachePolicy(coil.request.CachePolicy.ENABLED)
-                            .build(),
-                        contentDescription = "Developer Profile",
-                        contentScale = ContentScale.Crop,
+                    Box(
                         modifier = Modifier
-                            .size(70.dp)
-                            .clip(CircleShape),
-                        loading = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
-                            }
-                        },
-                        error = {
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxSize()
-                                    .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
-                                contentAlignment = Alignment.Center
-                            ) {
-                                Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
-                            }
-                        }
-                    )
-
-                    Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-                    Text(text = "Calculator Developer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp)
-
-                    // Contact action flows
-                    Column(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(8.dp)
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selectedTab == 0) accentBlue else Color.Transparent)
+                            .border(1.dp, if (selectedTab == 0) accentBlue else cardBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .clickable { selectedTab = 0 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
                     ) {
-                        // Phone Link
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF2563EB).copy(alpha = 0.1f))
-                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:01600180139"))
-                                    context.startActivity(intent)
-                                }
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(text = "📞", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
-                            Column {
-                                Text(text = "PHONE", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
-                                Text(text = "01600180139", fontSize = 13.sp, color = textCol, fontFamily = FontFamily.Monospace)
-                            }
-                        }
+                        Text(
+                            text = "🔘 Button Work List",
+                            color = if (selectedTab == 0) Color.White else textCol,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
 
-                        // Email Link
-                        Row(
+                    Box(
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (selectedTab == 1) accentBlue else Color.Transparent)
+                            .border(1.dp, if (selectedTab == 1) accentBlue else cardBorder.copy(alpha = 0.5f), RoundedCornerShape(8.dp))
+                            .clickable { selectedTab = 1 }
+                            .padding(vertical = 8.dp),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Text(
+                            text = "👤 Developer Profile",
+                            color = if (selectedTab == 1) Color.White else textCol,
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                }
+
+                Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
+
+                // Tab Content
+                if (selectedTab == 0) {
+                    // TAB 0: BUTTON WORK LIST
+                    Column(modifier = Modifier.fillMaxSize()) {
+                        // Search bar
+                        OutlinedTextField(
+                            value = searchQuery,
+                            onValueChange = { searchQuery = it },
+                            placeholder = { Text("Enter Something....", fontSize = 11.sp) },
                             modifier = Modifier
                                 .fillMaxWidth()
-                                .clip(RoundedCornerShape(8.dp))
-                                .background(Color(0xFF2563EB).copy(alpha = 0.1f))
-                                .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
-                                .clickable {
-                                    val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:hridoyeasin63@gmail.com"))
-                                    context.startActivity(intent)
+                                .padding(horizontal = 12.dp, vertical = 6.dp),
+                            singleLine = true,
+                            shape = RoundedCornerShape(8.dp),
+                            colors = OutlinedTextFieldDefaults.colors(
+                                focusedBorderColor = accentBlue,
+                                unfocusedBorderColor = cardBorder.copy(alpha = 0.5f)
+                            ),
+                            textStyle = androidx.compose.ui.text.TextStyle(fontSize = 12.sp, color = textCol),
+                            leadingIcon = {
+                                Icon(
+                                    imageVector = Icons.Default.Search,
+                                    contentDescription = "Search",
+                                    tint = textCol.copy(alpha = 0.5f),
+                                    modifier = Modifier.size(16.dp)
+                                )
+                            },
+                            trailingIcon = {
+                                if (searchQuery.isNotEmpty()) {
+                                    IconButton(onClick = { searchQuery = "" }, modifier = Modifier.size(20.dp)) {
+                                        Icon(Icons.Default.Close, contentDescription = "Clear search", tint = textCol.copy(alpha = 0.6f), modifier = Modifier.size(14.dp))
+                                    }
                                 }
-                                .padding(10.dp),
-                            verticalAlignment = Alignment.CenterVertically
+                            }
+                        )
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Results List
+                        LazyColumn(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .padding(horizontal = 12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(bottom = 12.dp)
                         ) {
-                            Text(text = "✉️", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
-                            Column {
-                                Text(text = "EMAIL", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
-                                Text(text = "hridoyeasin63@gmail.com", fontSize = 13.sp, color = textCol)
+                            if (filteredButtons.isEmpty()) {
+                                item {
+                                    Box(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        contentAlignment = Alignment.Center
+                                    ) {
+                                        Text(
+                                            text = "No buttons match your search query.",
+                                            color = textCol.copy(alpha = 0.5f),
+                                            fontSize = 12.sp,
+                                            fontWeight = FontWeight.Medium
+                                        )
+                                    }
+                                }
+                            } else {
+                                items(filteredButtons) { btn ->
+                                    Card(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        colors = CardDefaults.cardColors(
+                                            containerColor = if (isDark) Color(0xFF0F172A) else Color(0xFFF8FAFC)
+                                        ),
+                                        shape = RoundedCornerShape(8.dp),
+                                        border = BorderStroke(1.dp, if (isDark) Color(0xFF334155) else Color(0xFFE2E8F0))
+                                    ) {
+                                        Column(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .padding(10.dp)
+                                        ) {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                // Button Key Badge
+                                                Box(
+                                                    modifier = Modifier
+                                                        .clip(RoundedCornerShape(3.dp))
+                                                        .background(
+                                                            when {
+                                                                btn.key.contains("SHIFT") -> Color(0xFFD97706) // Yellow/Amber
+                                                                btn.key.contains("ALPHA") -> Color(0xFFDC2626) // Red
+                                                                btn.key == "AC" || btn.key == "DEL" -> Color(0xFFDC2626)
+                                                                btn.key == "=" -> Color(0xFF2563EB)
+                                                                else -> if (isDark) Color(0xFF334155) else Color(0xFFCBD5E1)
+                                                            }
+                                                        )
+                                                        .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                ) {
+                                                    Text(
+                                                        text = btn.key,
+                                                        color = Color.White,
+                                                        fontSize = 8.sp,
+                                                        fontWeight = FontWeight.Bold,
+                                                        fontFamily = FontFamily.Monospace
+                                                    )
+                                                }
+
+                                                // Combo Chip if available
+                                                if (btn.combo != "Direct Tap" && btn.combo.trim() != btn.key.trim()) {
+                                                    Box(
+                                                        modifier = Modifier
+                                                            .clip(RoundedCornerShape(3.dp))
+                                                            .background(Color(0xFFD97706).copy(alpha = 0.15f))
+                                                            .padding(horizontal = 4.dp, vertical = 1.dp)
+                                                    ) {
+                                                        Text(
+                                                            text = btn.combo,
+                                                            color = Color(0xFFD97706),
+                                                            fontSize = 7.5.sp,
+                                                            fontWeight = FontWeight.Bold
+                                                        )
+                                                    }
+                                                }
+                                            }
+
+                                            Spacer(modifier = Modifier.height(6.dp))
+
+                                            // Name
+                                            Text(
+                                                text = btn.name,
+                                                color = textCol,
+                                                fontSize = 13.sp,
+                                                fontWeight = FontWeight.Bold
+                                            )
+
+                                            Spacer(modifier = Modifier.height(2.dp))
+
+                                            // Description / Work list explanation
+                                            Text(
+                                                text = btn.description,
+                                                color = textCol.copy(alpha = 0.8f),
+                                                fontSize = 11.sp,
+                                                lineHeight = 15.sp
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-
-                    Divider(color = borderStrongColor(isDark), thickness = 1.dp)
-
-                    // Keyboard Combos reference list
+                } else {
+                    // TAB 1: DEVELOPER PROFILE & CONTACTS
                     Column(
                         modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(if (isDark) Color(0xFF334155) else Color(0xFFF1F5F9))
-                            .border(1.dp, borderStrongColor(isDark), RoundedCornerShape(8.dp))
-                            .padding(10.dp)
+                            .fillMaxSize()
+                            .padding(14.dp)
+                            .verticalScroll(rememberScrollState()),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(12.dp)
                     ) {
-                        Text(
-                            text = "🔘 BUTTON COMBOS",
-                            color = Color(0xFF2563EB),
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 12.sp,
+                        // Dynamic Profile Image loaded via Coil with custom "H" circle fallback
+                        SubcomposeAsyncImage(
+                            model = ImageRequest.Builder(context)
+                                .data("https://pbs.twimg.com/profile_images/1549038045931769862/NJjQA0_i_400x400.jpg")
+                                .crossfade(true)
+                                .diskCachePolicy(coil.request.CachePolicy.ENABLED)
+                                .build(),
+                            contentDescription = "Developer Profile",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(72.dp)
+                                .clip(CircleShape)
+                                .border(2.dp, accentBlue, CircleShape),
+                            loading = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
+                                }
+                            },
+                            error = {
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxSize()
+                                        .background(Brush.linearGradient(listOf(Color(0xFF2563EB), Color(0xFF1E3A8A)))),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(text = "H", fontSize = 34.sp, fontWeight = FontWeight.Bold, color = Color(0xFFFFFF00))
+                                }
+                            }
+                        )
+
+                        Text(text = "Hridoy Hasan Yeasin", color = textCol, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                        Text(text = "Calculator Developer & Software Engineer", color = textCol.copy(alpha = 0.7f), fontSize = 12.sp, textAlign = TextAlign.Center)
+
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Contact action flows
+                        Column(
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-
-                        val combos = listOf(
-                            "M" to "DEG ↔ RAD toggle",
-                            "SHIFT + M" to "f(x) Table Mode",
-                            "ALPHA + M" to "Base Converter",
-                            "SHIFT + ALPHA + M" to "Equation Solver",
-                            "SHIFT" to "sin⁻¹, cos⁻¹, tan⁻¹, x³, ³√, eˣ, 10ˣ",
-                            "ALPHA" to "csc, sec, cot, A, B, C, D, E, F",
-                            "SHIFT + ALPHA" to "csc⁻¹, sec⁻¹, cot⁻¹",
-                            "SHIFT + STO" to "Clear All Variables",
-                            "SHIFT + AC" to "Full Hardware Reset",
-                            "SHIFT + %" to "Comma (,)"
-                        )
-
-                        combos.forEach { combo ->
+                            verticalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            // Phone Link
                             Row(
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .padding(vertical = 3.dp),
-                                horizontalArrangement = Arrangement.SpaceBetween
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF2563EB).copy(alpha = 0.1f))
+                                    .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val intent = Intent(Intent.ACTION_DIAL, Uri.parse("tel:01600180139"))
+                                        context.startActivity(intent)
+                                    }
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Text(text = combo.first, color = Color(0xFFDC2626), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1.2f))
-                                Text(text = "= " + combo.second, color = textCol, fontSize = 10.sp, modifier = Modifier.weight(1.8f))
+                                Text(text = "📞", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                                Column {
+                                    Text(text = "PHONE", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
+                                    Text(text = "01600180139", fontSize = 13.sp, color = textCol, fontFamily = FontFamily.Monospace)
+                                }
+                            }
+
+                            // Email Link
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .background(Color(0xFF2563EB).copy(alpha = 0.1f))
+                                    .border(1.dp, Color(0xFF2563EB).copy(alpha = 0.3f), RoundedCornerShape(8.dp))
+                                    .clickable {
+                                        val intent = Intent(Intent.ACTION_SENDTO, Uri.parse("mailto:hridoyeasin63@gmail.com"))
+                                        context.startActivity(intent)
+                                    }
+                                    .padding(10.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Text(text = "✉️", fontSize = 18.sp, modifier = Modifier.padding(end = 8.dp))
+                                Column {
+                                    Text(text = "EMAIL", fontSize = 9.sp, color = Color(0xFF60A5FA), fontWeight = FontWeight.Bold)
+                                    Text(text = "hridoyeasin63@gmail.com", fontSize = 13.sp, color = textCol)
+                                }
                             }
                         }
-                    }
 
-                    // Social links action widgets
-                    Text(text = "SOCIAL LINKS", color = Color(0xFF60A5FA), fontSize = 10.sp, fontWeight = FontWeight.Bold, modifier = Modifier.align(Alignment.Start))
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        SocialNetworkCard("Facebook", "https://facebook.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
-                        SocialNetworkCard("WhatsApp", "https://wa.me/8801600180139", context, textCol, Modifier.weight(1f))
-                        SocialNetworkCard("IMO", "https://s.imoim.net/jyLtH6", context, textCol, Modifier.weight(1f))
-                        SocialNetworkCard("X", "https://x.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                        Divider(color = cardBorder.copy(alpha = 0.3f), thickness = 1.dp)
+
+                        // Social links action widgets
+                        Text(
+                            text = "SOCIAL PROFILES",
+                            color = Color(0xFF60A5FA),
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.align(Alignment.Start)
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            SocialNetworkCard("Facebook", "https://facebook.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                            SocialNetworkCard("WhatsApp", "https://wa.me/8801600180139", context, textCol, Modifier.weight(1f))
+                            SocialNetworkCard("IMO", "https://s.imoim.net/jyLtH6", context, textCol, Modifier.weight(1f))
+                            SocialNetworkCard("X", "https://x.com/hridoyeasin63", context, textCol, Modifier.weight(1f))
+                        }
                     }
                 }
             }

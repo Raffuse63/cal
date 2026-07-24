@@ -387,9 +387,9 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         if (justCalculated.value) {
-            expr.value = engine.formatResult(engine.ans)
+            expr.value = "Ans"
             cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
-            result.value = engine.formatResult(engine.ans)
+            result.value = engine.evaluateToString("Ans")
             justCalculated.value = false
         }
 
@@ -572,8 +572,8 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
         }
 
         val noImplicitMul = listOf("pow", "pow2", "nPr", "fact")
-        if (justCalculated.value && !noImplicitMul.contains(fn)) {
-            expr.value = engine.formatResult(engine.ans) + "×"
+        if (justCalculated.value) {
+            expr.value = if (noImplicitMul.contains(fn)) "Ans" else "Ans×"
             cursorPosition.value = if (cursorPosition.value != null) expr.value.length else null
             result.value = "0"
             justCalculated.value = false
@@ -789,10 +789,13 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                 result.value = if (isEqual) "True" else "False"
                 engine.ans = if (isEqual) 1.0 else 0.0
             } else {
-                val rawVal = engine.evaluate(displayExpr)
+                val rawVal = try { engine.evaluate(displayExpr) } catch (_: Exception) { 0.0 }
                 val exact = engine.toExactForm(displayExpr, rawVal)
-                result.value = if (showExact.value && exact != null) exact else engine.formatBaseResult(rawVal)
-                engine.ans = rawVal
+                if (showExact.value && exact != null) {
+                    result.value = exact
+                } else {
+                    result.value = engine.evaluateToString(displayExpr)
+                }
             }
 
             // Save History directly to SQLite database
@@ -906,8 +909,7 @@ class CalculatorViewModel(application: Application) : AndroidViewModel(applicati
                     calcTerm = calcTerm.dropLast(1).trim()
                 }
                 if (calcTerm.isNotEmpty() && !calcTerm.endsWith("(") && !calcTerm.endsWith("E")) {
-                    val liveResult = engine.evaluate(calcTerm)
-                    result.value = engine.formatBaseResult(liveResult)
+                    result.value = engine.evaluateToString(calcTerm)
                 }
             }
         } catch (e: Exception) {
